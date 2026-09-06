@@ -110,6 +110,17 @@
     vertical-align: middle;
   }
 
+  .card.guide-priced:not(.live-priced) .price-row .price-value::after{
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-left: 6px;
+    border-radius: 50%;
+    background: var(--indigo);
+    vertical-align: middle;
+  }
+
   .controls{
     display:flex;
     gap:10px;
@@ -367,6 +378,8 @@
       <option value="missing">Missing only</option>
     </select>
     <button id="updatePricesBtn" type="button">Update prices</button>
+    <button id="loadGuideBtn" type="button">Load price guide</button>
+    <input type="file" id="guideFileInput" accept=".json" multiple style="display:none" />
     <button id="resetBtn" type="button">Reset collection</button>
   </div>
 </header>
@@ -839,11 +852,250 @@
   }
 
   // ---------------------------------------------------------------
-  // 9. Boot
+  // 9. Bulk price guide import — lets you load Cardmarket's own bulk
+  //    "products" + "price guide" JSON exports (the same files that
+  //    power Cardmarket's site) directly from your disk, entirely in
+  //    the browser. These files cover EVERY Pokémon product ever
+  //    listed (tens of thousands of rows), so this:
+  //      1. Auto-detects which idExpansion is Pitch Black by looking
+  //         for a cluster of our known Pitch-Black-only trainer/item
+  //         names (things no other set has ever printed) sharing one
+  //         idExpansion value.
+  //      2. Joins products + prices for just that expansion.
+  //      3. Handles the tricky part: many Pitch Black cards share a
+  //         name with their own secret-rare version (e.g. "Lurantis
+  //         ex" prints at both #004 and #096). When a name has more
+  //         than one Cardmarket product, candidates are sorted by
+  //         price and matched against our slots in the same order —
+  //         so the cheap print gets the cheap slot and the chase
+  //         print gets the expensive slot, instead of collapsing to
+  //         one number for both.
+  //    No splitting of the files is required for this to run well:
+  //    parsing ~13-15MB of JSON is well under a second in a modern
+  //    browser. The result (just the ~120 numbers we need) is what
+  //    gets cached to LocalStorage, not the source files themselves.
+  // ---------------------------------------------------------------
+  var GUIDE_CACHE_KEY = "pb_bulk_guide_cache_v1";
+  var DISTINCTIVE_NAMES = [
+    "Backtrack Badge", "Fossil Quarry", "Gladion's Final Battle", "Gwynn",
+    "Misty's Vitality", "Rust Syndicate Grunt", "Tremendous Bomb", "Dark Bell",
+    "Crushing Hammer", "Brave Bangle", "Antique Armor Fossil", "Antique Skull Fossil"
+  ];
+
+  function buildExpansionGuess(products){
+    var distinctive = new Set(DISTINCTIVE_NAMES);
+    var seenPerExpansion = {};
+    for (var i = 0; i < products.length; i++){
+      var p = products[i];
+      if (distinctive.has(p.name)){
+        var key = String(p.idExpansion);
+        if (!seenPerExpansion[key]) seenPerExpansion[key] = new Set();
+        seenPerExpansion[key].add(p.name);
+      }
+    }
+    var bestExpansion = null, bestCount = 0;
+    Object.keys(seenPerExpansion).forEach(function(exp){
+      var c = seenPerExpansion[exp].size;
+      if (c > bestCount){ bestCount = c; bestExpansion = exp; }
+    });
+    return { expansion: bestExpansion, matchedDistinctiveCount: bestCount };
+  }
+
+  function joinPriceGuide(products, priceGuides){
+    var guess = buildExpansionGuess(products);
+    if (!guess.expansion || guess.matchedDistinctiveCount < 5){
+      return { success: false, reason: "Could not confidently identify Pitch Black's expansion id in this products file (matched only " + guess.matchedDistinctiveCount + "/12 distinctive names)." };
+    }
+
+    var priceByProduct = {};
+    priceGuides.forEach(function(pg){ priceByProduct[pg.idProduct] = pg; });
+
+    var byName = {};
+    products.forEach(function(p){
+      if (String(p.idExpansion) === guess.expansion){
+        var pg = priceByProduct[p.idProduct];
+        if (pg && typeof pg.low === "number"){
+          if (!byName[p.name]) byName[p.name] = [];
+          byName[p.name].push({ idProduct: p.idProduct, low: pg.low });
+        }
+      }
+    });
+
+    var slotsByName = {};
+    CARDS.forEach(function(c){
+      if (!slotsByName[c.name]) slotsByName[c.name] = [];
+      slotsByName[c.name].push(c);
+    });
+
+    var results = {}, unmatched = [], ambiguous = [];
+
+    Object.keys(slotsByName).forEach(function(name){
+      var slots = slotsByName[name];
+      var candidates = byName[name];
+      if (!candidates || candidates.length === 0){
+        slots.forEach(function(s){ unmatched.push(s.code); });
+        return;
+      }
+      if (slots.length === 1){
+        var minLow = Math.min.apply(null, candidates.map(function(c){ return c.low; }));
+        results[slots[0].code] = minLow;
+        if (candidates.length > 1) ambiguous.push(slots[0].code);
+        return;
+      }
+      var sortedSlots = slots.slice().sort(function(a, b){ return a.price - b.price; });
+      var sortedCandidates = candidates.slice().sort(function(a, b){ return a.low - b.low; });
+      if (sortedSlots.length === sortedCandidates.length){
+        sortedSlots.forEach(function(slot, idx){ results[slot.code] = sortedCandidates[idx].low; });
+      } else {
+        sortedSlots.forEach(function(slot){
+          var best = null, bestDist = Infinity;
+          sortedCandidates.forEach(function(c){
+            var dist = Math.abs(Math.log(c.low + 0.01) - Math.log(slot.price + 0.01));
+            if (dist < bestDist){ bestDist = dist; best = c; }
+          });
+          if (best) results[slot.code] = best.low;
+          ambiguous.push(slot.code);
+        });
+      }
+    });
+
+    return { success: true, expansion: guess.expansion, results: results, unmatched: unmatched, ambiguous: ambiguous };
+  }
+
+  function applyGuideResults(joinResult){
+    var now = new Date();
+    CARDS.forEach(function(card){
+      if (Object.prototype.hasOwnProperty.call(joinResult.results, card.code)){
+        card.price = joinResult.results[card.code];
+        var el = cardElements[card.code];
+        if (el){
+          var priceValueEl = el.querySelector(".price-value");
+          if (priceValueEl) priceValueEl.textContent = formatEUR(card.price);
+          el.classList.add("guide-priced");
+        }
+      }
+    });
+    recalcTelemetry();
+
+    try{
+      window.localStorage.setItem(GUIDE_CACHE_KEY, JSON.stringify({
+        timestamp: now.toISOString(),
+        results: joinResult.results
+      }));
+    }catch(e){
+      console.warn("Could not cache bulk guide results", e);
+    }
+
+    var matchedCount = Object.keys(joinResult.results).length;
+    var stamp = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    var msg = "Price guide snapshot at " + stamp + " \u00b7 " + matchedCount + " / " + TOTAL_CARDS + " matched";
+    if (joinResult.ambiguous.length){
+      msg += " (" + joinResult.ambiguous.length + " resolved via duplicate-name heuristic)";
+    }
+    if (joinResult.unmatched.length){
+      msg += " \u00b7 " + joinResult.unmatched.length + " unmatched: " + joinResult.unmatched.join(", ");
+    }
+    setStatus(msg);
+    if (joinResult.unmatched.length){
+      console.warn("Pitch Black cards with no bulk-guide match:", joinResult.unmatched);
+    }
+    if (joinResult.ambiguous.length){
+      console.info("Pitch Black cards resolved via duplicate-name price heuristic:", joinResult.ambiguous);
+    }
+  }
+
+  function applyCachedGuideIfPresent(){
+    try{
+      var raw = window.localStorage.getItem(GUIDE_CACHE_KEY);
+      if (!raw) return;
+      var cached = JSON.parse(raw);
+      if (!cached || !cached.results) return;
+      CARDS.forEach(function(card){
+        if (Object.prototype.hasOwnProperty.call(cached.results, card.code)){
+          card.price = cached.results[card.code];
+          var el = cardElements[card.code];
+          if (el){
+            var priceValueEl = el.querySelector(".price-value");
+            if (priceValueEl) priceValueEl.textContent = formatEUR(card.price);
+            el.classList.add("guide-priced");
+          }
+        }
+      });
+      recalcTelemetry();
+      var stamp = new Date(cached.timestamp).toLocaleString([], { hour: "2-digit", minute: "2-digit", month: "short", day: "numeric" });
+      setStatus("Price guide snapshot cached from " + stamp);
+    }catch(e){
+      console.warn("Could not restore cached bulk guide", e);
+    }
+  }
+
+  var loadGuideBtn = document.getElementById("loadGuideBtn");
+  var guideFileInput = document.getElementById("guideFileInput");
+
+  function readFileAsText(file){
+    return new Promise(function(resolve, reject){
+      var reader = new FileReader();
+      reader.onload = function(){ resolve(reader.result); };
+      reader.onerror = function(){ reject(reader.error); };
+      reader.readAsText(file);
+    });
+  }
+
+  if (loadGuideBtn && guideFileInput){
+    loadGuideBtn.addEventListener("click", function(){
+      guideFileInput.click();
+    });
+
+    guideFileInput.addEventListener("change", function(){
+      var files = Array.prototype.slice.call(guideFileInput.files || []);
+      if (files.length === 0) return;
+
+      loadGuideBtn.disabled = true;
+      loadGuideBtn.textContent = "Loading\u2026";
+      setStatus("Reading price guide files\u2026");
+
+      Promise.all(files.map(readFileAsText))
+        .then(function(texts){
+          var products = null, priceGuides = null;
+          texts.forEach(function(text){
+            var parsed;
+            try{ parsed = JSON.parse(text); }
+            catch(e){ throw new Error("One of the selected files is not valid JSON."); }
+            if (parsed && Array.isArray(parsed.products)){
+              products = parsed.products;
+            } else if (parsed && Array.isArray(parsed.priceGuides)){
+              priceGuides = parsed.priceGuides;
+            }
+          });
+          if (!products || !priceGuides){
+            throw new Error("Select both the products file and the price guide file together.");
+          }
+          var joinResult = joinPriceGuide(products, priceGuides);
+          if (!joinResult.success){
+            throw new Error(joinResult.reason);
+          }
+          applyGuideResults(joinResult);
+        })
+        .catch(function(err){
+          setStatus("Could not load price guide: " + err.message);
+        })
+        .finally(function(){
+          loadGuideBtn.disabled = false;
+          loadGuideBtn.textContent = "Load price guide";
+          guideFileInput.value = "";
+        });
+    });
+  }
+
+  // ---------------------------------------------------------------
+  // 10. Boot
   // ---------------------------------------------------------------
   renderGrid();
   recalcTelemetry();
-  setStatus("Showing reference prices \u2014 click \u201cUpdate prices\u201d for a Cardmarket snapshot");
+  applyCachedGuideIfPresent();
+  if (!window.localStorage.getItem(GUIDE_CACHE_KEY)){
+    setStatus("Showing reference prices \u2014 click \u201cUpdate prices\u201d for a live Cardmarket snapshot, or \u201cLoad price guide\u201d to import bulk Cardmarket JSON files");
+  }
 
 })();
 </script>
