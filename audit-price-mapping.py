@@ -34,6 +34,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PRICES_FILE = "card-prices.json"
 REGISTRY_FILE = "set-registry.json"
 OUTPUT_FILE = "PRICE-MAPPING-NOTES.md"
+# A rendered sibling, so the notes are readable when served from GitHub Pages
+# regardless of whether Jekyll is enabled for the repo.
+OUTPUT_HTML_FILE = "price-mapping-notes.html"
 
 API_ENDPOINT = "https://api.pokemontcg.io/v2/cards"
 # The API rejects urllib's default user-agent with a 403.
@@ -321,6 +324,122 @@ def render_markdown(snapshot_date, results, registry_blocks):
     return "\n".join(lines) + "\n"
 
 
+def escape_html(text):
+    return (str(text).replace("&", "&amp;").replace("<", "&lt;")
+            .replace(">", "&gt;").replace('"', "&quot;"))
+
+
+def render_inline(text):
+    """**bold**, *italic* and `code` — the only inline markup this script emits.
+    Bold is converted first so its asterisks cannot be seen as italics."""
+    out = escape_html(text)
+    out = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", out)
+    out = re.sub(r"\*([^*]+)\*", r"<em>\1</em>", out)
+    out = re.sub(r"`([^`]+)`", r"<code>\1</code>", out)
+    return out
+
+
+def markdown_to_html(markdown_text):
+    """Converts the exact Markdown subset render_markdown() produces: ATX
+    headings, paragraphs, and pipe tables with an alignment row. Deliberately
+    not a general Markdown parser."""
+    html_parts = []
+    paragraph = []
+    table = []
+
+    def flush_paragraph():
+        if paragraph:
+            html_parts.append("<p>" + render_inline(" ".join(paragraph)) + "</p>")
+            paragraph.clear()
+
+    def flush_table():
+        if not table:
+            return
+        header, *body = table
+        # Drop the |---|---| alignment row.
+        body = [row for row in body if not re.match(r"^\|[\s:|-]+\|$", row)]
+
+        def cells(row):
+            return [c.strip() for c in row.strip().strip("|").split("|")]
+
+        head_html = "".join(f"<th>{render_inline(c)}</th>" for c in cells(header))
+        rows_html = "".join(
+            "<tr>" + "".join(f"<td>{render_inline(c)}</td>" for c in cells(r)) + "</tr>"
+            for r in body
+        )
+        html_parts.append(
+            f"<div class='table-wrap'><table><thead><tr>{head_html}</tr></thead>"
+            f"<tbody>{rows_html}</tbody></table></div>"
+        )
+        table.clear()
+
+    for line in markdown_text.split("\n"):
+        stripped = line.rstrip()
+        if stripped.startswith("|"):
+            flush_paragraph()
+            table.append(stripped)
+            continue
+        flush_table()
+
+        if not stripped:
+            flush_paragraph()
+        elif stripped.startswith("### "):
+            flush_paragraph()
+            html_parts.append(f"<h3>{render_inline(stripped[4:])}</h3>")
+        elif stripped.startswith("## "):
+            flush_paragraph()
+            html_parts.append(f"<h2>{render_inline(stripped[3:])}</h2>")
+        elif stripped.startswith("# "):
+            flush_paragraph()
+            html_parts.append(f"<h1>{render_inline(stripped[2:])}</h1>")
+        else:
+            paragraph.append(stripped)
+
+    flush_paragraph()
+    flush_table()
+
+    body = "\n".join(html_parts)
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Price mapping notes</title>
+<style>
+  :root {{ color-scheme: dark; }}
+  body {{ background:#0f172a; color:#f8fafc; font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+         margin:0; padding:32px 20px; line-height:1.6; }}
+  main {{ max-width:960px; margin:0 auto; }}
+  h1 {{ font-size:24px; color:#a78bfa; margin:0 0 6px; }}
+  h2 {{ font-size:17px; color:#f8fafc; margin:34px 0 10px; padding-bottom:7px;
+        border-bottom:1px solid #1e293b; }}
+  h3 {{ font-size:14px; color:#818cf8; margin:24px 0 8px; }}
+  p {{ color:#94a3b8; font-size:13px; margin:0 0 12px; }}
+  strong {{ color:#f8fafc; }}
+  code {{ background:#020617; border:1px solid #1e293b; border-radius:4px;
+          padding:1px 5px; font-size:12px; color:#a5b4fc; }}
+  .table-wrap {{ overflow-x:auto; margin:0 0 18px; }}
+  table {{ border-collapse:collapse; width:100%; font-size:12.5px; }}
+  th, td {{ border:1px solid #1e293b; padding:7px 10px; text-align:left; white-space:nowrap; }}
+  th {{ background:#020617; color:#94a3b8; font-size:11px; text-transform:uppercase;
+        letter-spacing:0.05em; }}
+  td {{ color:#cbd5e1; }}
+  tbody tr:nth-child(even) {{ background:#0b1220; }}
+  .back {{ display:inline-block; margin-bottom:22px; color:#818cf8; font-size:12px;
+           text-decoration:none; }}
+  .back:hover {{ color:#a78bfa; text-decoration:underline; }}
+</style>
+</head>
+<body>
+<main>
+<a class="back" href="index.html">&larr; Back to the tracker</a>
+{body}
+</main>
+</body>
+</html>
+"""
+
+
 def main():
     prices_path = os.path.join(HERE, PRICES_FILE)
     if not os.path.exists(prices_path):
@@ -349,10 +468,15 @@ def main():
     with open(out_path, "w", encoding="utf-8") as handle:
         handle.write(markdown)
 
+    html_path = os.path.join(HERE, OUTPUT_HTML_FILE)
+    with open(html_path, "w", encoding="utf-8") as handle:
+        handle.write(markdown_to_html(markdown))
+
     guessed = sum(s["guessed"] for s, _, _ in results)
     unpriced = sum(s["unpriced"] for s, _, _ in results)
     exact = sum(s["exact"] for s, _, _ in results)
-    print(f"wrote {OUTPUT_FILE}: {exact} exact, {guessed} best-guess, {unpriced} unpriced")
+    print(f"wrote {OUTPUT_FILE} and {OUTPUT_HTML_FILE}: "
+          f"{exact} exact, {guessed} best-guess, {unpriced} unpriced")
 
 
 def load_registry():

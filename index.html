@@ -108,10 +108,10 @@
   <p id="setStatusLine" class="status-line hidden"></p>
 
   <!-- Shown once the Cardmarket price snapshot has loaded (or failed to) -->
-  <p id="priceStatusLine" class="status-line hidden"></p>
+  <p id="priceStatusLine" class="status-line status-line--loading">Loading Cardmarket price snapshot…</p>
 
   <!-- Skeleton loading state: mirrors the eventual card grid shape -->
-  <div id="loadingWorkspace" class="grid">
+  <div id="loadingWorkspace" class="grid" data-state="skeleton">
     <div class="load-note" id="loadingNote"><span class="pulse-dot"></span>LOADING SET LIST…</div>
     <div class="skeleton"></div>
     <div class="skeleton" style="animation-delay:0.1s"></div>
@@ -136,7 +136,7 @@
 
   <footer class="page-footer">
     <span>Card data · pokemontcg.io</span>
-    <span>Prices · Cardmarket snapshot via build-price-index.py · best-guess matches listed in PRICE-MAPPING-NOTES.md</span>
+    <span>Prices · Cardmarket snapshot · <a class="footer-link" href="price-mapping-notes.html">mapping notes &amp; best-guess matches</a></span>
   </footer>
 
   <script src="tcg-app.js"></script>

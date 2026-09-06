@@ -570,3 +570,12 @@ body {
 ::-webkit-scrollbar { height: 10px; width: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--line-bright); border-radius: 999px; }
+
+.footer-link { color: var(--indigo); text-decoration: none; }
+.footer-link:hover { color: var(--violet); text-decoration: underline; }
+
+/* The status lines are part of the first paint, so give them a stable height:
+   letting them appear later pushed the whole grid down mid-load. */
+.status-line { min-height: 34px; }
+
+.load-fault-note { color: var(--text-dim) !important; font-size: 11px; margin: -6px 0 14px; }

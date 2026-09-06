@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Price mapping notes</title>
+<style>
+  :root { color-scheme: dark; }
+  body { background:#0f172a; color:#f8fafc; font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+         margin:0; padding:32px 20px; line-height:1.6; }
+  main { max-width:960px; margin:0 auto; }
+  h1 { font-size:24px; color:#a78bfa; margin:0 0 6px; }
+  h2 { font-size:17px; color:#f8fafc; margin:34px 0 10px; padding-bottom:7px;
+        border-bottom:1px solid #1e293b; }
+  h3 { font-size:14px; color:#818cf8; margin:24px 0 8px; }
+  p { color:#94a3b8; font-size:13px; margin:0 0 12px; }
+  strong { color:#f8fafc; }
+  code { background:#020617; border:1px solid #1e293b; border-radius:4px;
+          padding:1px 5px; font-size:12px; color:#a5b4fc; }
+  .table-wrap { overflow-x:auto; margin:0 0 18px; }
+  table { border-collapse:collapse; width:100%; font-size:12.5px; }
+  th, td { border:1px solid #1e293b; padding:7px 10px; text-align:left; white-space:nowrap; }
+  th { background:#020617; color:#94a3b8; font-size:11px; text-transform:uppercase;
+        letter-spacing:0.05em; }
+  td { color:#cbd5e1; }
+  tbody tr:nth-child(even) { background:#0b1220; }
+  .back { display:inline-block; margin-bottom:22px; color:#818cf8; font-size:12px;
+           text-decoration:none; }
+  .back:hover { color:#a78bfa; text-decoration:underline; }
+</style>
+</head>
+<body>
+<main>
+<a class="back" href="index.html">&larr; Back to the tracker</a>
+<h1>Price mapping notes</h1>
+<p>Generated 2026-09-06T16:18:15+00:00 from the Cardmarket snapshot dated 2026-09-05T02:47:21+0200.</p>
+<p>Regenerate with <code>python3 build-price-index.py &amp;&amp; python3 audit-price-mapping.py</code>.</p>
+<p>Prices are joined to cards by name. Where a set contains several cards sharing one name, they are paired in order: the <em>n</em>th Cardmarket product by <code>idProduct</code> is matched to the <em>n</em>th card by collector number. That is exact when both sides hold the same number of entries.</p>
+<p><strong>Every card listed under &quot;Best-guess prices&quot; below is not exact.</strong> Cardmarket carries an extra product for that name — an error or variant printing the card API does not model — and nothing in the data identifies which product is the standard print, so the lowest <code>idProduct</code> was taken. Treat these prices as indicative and check them on Cardmarket before relying on them.</p>
+<h2>Summary</h2>
+<div class='table-wrap'><table><thead><tr><th>Set</th><th>Cards</th><th>Products</th><th>Exact</th><th>Best guess</th><th>Unpriced</th></tr></thead><tbody><tr><td>Pitch Black</td><td>120</td><td>120</td><td>120</td><td>0</td><td>0</td></tr><tr><td>Base Set</td><td>102</td><td>102</td><td>102</td><td>0</td><td>0</td></tr><tr><td>Jungle</td><td>64</td><td>66</td><td>61</td><td>3</td><td>0</td></tr><tr><td>Fossil</td><td>62</td><td>63</td><td>60</td><td>2</td><td>0</td></tr><tr><td>Team Rocket</td><td>83</td><td>84</td><td>81</td><td>2</td><td>0</td></tr><tr><td>Gym Heroes</td><td>132</td><td>133</td><td>131</td><td>1</td><td>0</td></tr><tr><td>Gym Challenge</td><td>132</td><td>132</td><td>132</td><td>0</td><td>0</td></tr><tr><td><strong>Total</strong></td><td><strong>695</strong></td><td><strong>700</strong></td><td><strong>687</strong></td><td><strong>8</strong></td><td><strong>0</strong></td></tr></tbody></table></div>
+<h2>Best-guess prices</h2>
+<h3>Jungle</h3>
+<div class='table-wrap'><table><thead><tr><th>#</th><th>Card</th><th>Rarity</th><th>Price used</th><th>Cardmarket product</th><th>Also available</th><th>Why</th></tr></thead><tbody><tr><td>1</td><td>Clefable</td><td>Rare Holo</td><td>€31.14</td><td><code>273798</code></td><td><code>275572</code> (€800)</td><td>3 products share this name</td></tr><tr><td>17</td><td>Clefable</td><td>Rare</td><td>€8.45</td><td><code>273814</code></td><td><code>275572</code> (€800)</td><td>3 products share this name</td></tr><tr><td>56</td><td>Meowth</td><td>Common</td><td>€0.92</td><td><code>273853</code></td><td><code>275571</code> (€81.67)</td><td>2 products share this name</td></tr></tbody></table></div>
+<h3>Fossil</h3>
+<div class='table-wrap'><table><thead><tr><th>#</th><th>Card</th><th>Rarity</th><th>Price used</th><th>Cardmarket product</th><th>Also available</th><th>Why</th></tr></thead><tbody><tr><td>1</td><td>Aerodactyl</td><td>Rare Holo</td><td>€35.61</td><td><code>273862</code></td><td><code>275573</code> (€34.03)</td><td>3 products share this name</td></tr><tr><td>16</td><td>Aerodactyl</td><td>Rare</td><td>€11.76</td><td><code>273877</code></td><td><code>275573</code> (€34.03)</td><td>3 products share this name</td></tr></tbody></table></div>
+<h3>Team Rocket</h3>
+<div class='table-wrap'><table><thead><tr><th>#</th><th>Card</th><th>Rarity</th><th>Price used</th><th>Cardmarket product</th><th>Also available</th><th>Why</th></tr></thead><tbody><tr><td>8</td><td>Dark Gyarados</td><td>Rare Holo</td><td>€148.12</td><td><code>274061</code></td><td><code>275574</code> (€41.31)</td><td>3 products share this name</td></tr><tr><td>25</td><td>Dark Gyarados</td><td>Rare</td><td>€23.55</td><td><code>274078</code></td><td><code>275574</code> (€41.31)</td><td>3 products share this name</td></tr></tbody></table></div>
+<h3>Gym Heroes</h3>
+<div class='table-wrap'><table><thead><tr><th>#</th><th>Card</th><th>Rarity</th><th>Price used</th><th>Cardmarket product</th><th>Also available</th><th>Why</th></tr></thead><tbody><tr><td>9</td><td>Misty's Seadra</td><td>Rare Holo</td><td>€23</td><td><code>274145</code></td><td><code>275575</code> (€19.43)</td><td>2 products share this name</td></tr></tbody></table></div>
+<h2>Printing caveats</h2>
+<p>Cardmarket prices a <em>product</em>, and for the vintage sets a product does not always correspond to one printing. Where that is true the set is listed below, with its most valuable cards so the numbers can be spot-checked on cardmarket.com before being relied on. Nothing in the dump names its expansions, so the exact printing behind these figures cannot be determined from the data alone.</p>
+<h3>Base Set</h3>
+<p>Cardmarket expansion <code>4169</code> · 102 products</p>
+<p>Cardmarket lists Base Set under two expansions. This tracker uses 4169, which carries exactly one product per card. The other, 1523, splits 1st Edition / Shadowless / Unlimited across 211 products and cannot be paired against a card API that models one printing per card. So these are 4169's prices, not 1st Edition.</p>
+<p>Spot-check these against Cardmarket:</p>
+<div class='table-wrap'><table><thead><tr><th>Card</th><th>Avg</th><th>Low</th><th>Trend</th><th>Product</th></tr></thead><tbody><tr><td>Charizard</td><td>€662.66</td><td>€169</td><td>€709.09</td><td><code>557671</code></td></tr><tr><td>Venusaur</td><td>€139.44</td><td>€19.99</td><td>€170.47</td><td><code>557654</code></td></tr><tr><td>Blastoise</td><td>€124.6</td><td>€29.99</td><td>€144.08</td><td><code>557683</code></td></tr><tr><td>Nidoking</td><td>€122.2</td><td>€6.49</td><td>€94.56</td><td><code>557661</code></td></tr><tr><td>Alakazam</td><td>€97.53</td><td>€9</td><td>€73.19</td><td><code>557700</code></td></tr></tbody></table></div>
+<h3>Jungle</h3>
+<p>Cardmarket expansion <code>1525</code> · 66 products</p>
+<p>Cardmarket does not split 1st Edition from Unlimited in this expansion, so every price here is for a single unidentified printing.</p>
+<p>Spot-check these against Cardmarket:</p>
+<div class='table-wrap'><table><thead><tr><th>Card</th><th>Avg</th><th>Low</th><th>Trend</th><th>Product</th></tr></thead><tbody><tr><td>Clefable</td><td>€800</td><td>€575</td><td>€471.57</td><td><code>275572</code></td></tr><tr><td>Meowth</td><td>€81.67</td><td>€39.9</td><td>€88.65</td><td><code>275571</code></td></tr><tr><td>Snorlax</td><td>€72.91</td><td>€9.9</td><td>€70.63</td><td><code>273808</code></td></tr><tr><td>Jolteon</td><td>€51.32</td><td>€4</td><td>€63.1</td><td><code>273801</code></td></tr><tr><td>Flareon</td><td>€46.57</td><td>€11.94</td><td>€54.45</td><td><code>273800</code></td></tr></tbody></table></div>
+<h3>Fossil</h3>
+<p>Cardmarket expansion <code>1526</code> · 63 products</p>
+<p>Cardmarket does not split 1st Edition from Unlimited in this expansion, so every price here is for a single unidentified printing.</p>
+<p>Spot-check these against Cardmarket:</p>
+<div class='table-wrap'><table><thead><tr><th>Card</th><th>Avg</th><th>Low</th><th>Trend</th><th>Product</th></tr></thead><tbody><tr><td>Gengar</td><td>€154.45</td><td>€24</td><td>€159.34</td><td><code>273866</code></td></tr><tr><td>Dragonite</td><td>€140.89</td><td>€20</td><td>€163.07</td><td><code>273865</code></td></tr><tr><td>Moltres</td><td>€65.6</td><td>€10</td><td>€76.57</td><td><code>273873</code></td></tr><tr><td>Raichu</td><td>€54.55</td><td>€4</td><td>€44.36</td><td><code>273875</code></td></tr><tr><td>Haunter</td><td>€47.23</td><td>€6.41</td><td>€36.32</td><td><code>273867</code></td></tr></tbody></table></div>
+<h3>Team Rocket</h3>
+<p>Cardmarket expansion <code>1528</code> · 84 products</p>
+<p>Cardmarket does not split 1st Edition from Unlimited in this expansion, so every price here is for a single unidentified printing.</p>
+<p>Spot-check these against Cardmarket:</p>
+<div class='table-wrap'><table><thead><tr><th>Card</th><th>Avg</th><th>Low</th><th>Trend</th><th>Product</th></tr></thead><tbody><tr><td>Dark Charizard</td><td>€279.48</td><td>€49.99</td><td>€240.85</td><td><code>274057</code></td></tr><tr><td>Dark Blastoise</td><td>€172.17</td><td>€23.9</td><td>€188.31</td><td><code>274056</code></td></tr><tr><td>Dark Dragonite</td><td>€168.31</td><td>€29</td><td>€127.77</td><td><code>274058</code></td></tr><tr><td>Dark Gyarados</td><td>€148.12</td><td>€9</td><td>€284.22</td><td><code>274061</code></td></tr><tr><td>Dark Raichu</td><td>€106.13</td><td>€22.99</td><td>€100.62</td><td><code>274136</code></td></tr></tbody></table></div>
+<h3>Gym Heroes</h3>
+<p>Cardmarket expansion <code>1529</code> · 133 products</p>
+<p>Cardmarket does not split 1st Edition from Unlimited in this expansion, so every price here is for a single unidentified printing.</p>
+<p>Spot-check these against Cardmarket:</p>
+<div class='table-wrap'><table><thead><tr><th>Card</th><th>Avg</th><th>Low</th><th>Trend</th><th>Product</th></tr></thead><tbody><tr><td>Sabrina's Gengar</td><td>€414.94</td><td>€215</td><td>€422.29</td><td><code>274150</code></td></tr><tr><td>Blaine's Moltres</td><td>€117.91</td><td>€19.89</td><td>€174.68</td><td><code>274137</code></td></tr><tr><td>Erika's Dragonair</td><td>€105.42</td><td>€15</td><td>€137.21</td><td><code>274140</code></td></tr><tr><td>Rocket's Moltres</td><td>€90.29</td><td>€18</td><td>€80.74</td><td><code>274148</code></td></tr><tr><td>Rocket's Scyther</td><td>€66.46</td><td>€15</td><td>€141.93</td><td><code>274149</code></td></tr></tbody></table></div>
+<h3>Gym Challenge</h3>
+<p>Cardmarket expansion <code>1530</code> · 132 products</p>
+<p>Cardmarket does not split 1st Edition from Unlimited in this expansion, so every price here is for a single unidentified printing.</p>
+<p>Spot-check these against Cardmarket:</p>
+<div class='table-wrap'><table><thead><tr><th>Card</th><th>Avg</th><th>Low</th><th>Trend</th><th>Product</th></tr></thead><tbody><tr><td>Sabrina's Gengar</td><td>€511.52</td><td>€60</td><td>€354.37</td><td><code>274297</code></td></tr><tr><td>Blaine's Charizard</td><td>€434.84</td><td>€109.89</td><td>€567.96</td><td><code>274270</code></td></tr><tr><td>Rocket's Zapdos</td><td>€413.71</td><td>€17.32</td><td>€169.59</td><td><code>274283</code></td></tr><tr><td>Rocket's Mewtwo</td><td>€249.24</td><td>€74.88</td><td>€232.76</td><td><code>274282</code></td></tr><tr><td>Erika's Venusaur</td><td>€141.06</td><td>€42.9</td><td>€109.28</td><td><code>274272</code></td></tr></tbody></table></div>
+<h2>Unpriced cards</h2>
+<p>None — every card received a price.</p>
+</main>
+</body>
+</html>

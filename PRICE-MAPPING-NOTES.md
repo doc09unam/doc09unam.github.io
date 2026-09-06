@@ -1,6 +1,6 @@
 # Price mapping notes
 
-Generated 2026-09-06T16:04:21+00:00 from the Cardmarket snapshot dated 2026-09-05T02:47:21+0200.
+Generated 2026-09-06T16:18:15+00:00 from the Cardmarket snapshot dated 2026-09-05T02:47:21+0200.
 
 Regenerate with `python3 build-price-index.py && python3 audit-price-mapping.py`.
 

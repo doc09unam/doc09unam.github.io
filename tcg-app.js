@@ -447,11 +447,19 @@ async function fetchSetCatalogueWithRetry(setDefinition) {
   throw lastEncounteredError || new Error('Catalogue unavailable.');
 }
 
+// Cheap identity check so a background refresh that returns what is already on
+// screen does not trigger a repaint.
+function catalogueSignature(cardCollection) {
+  return (cardCollection || []).map(card =>
+    `${card.id}|${card.name}|${card.number}|${card.rarity}|${card.imageUrl}`).join('\n');
+}
+
 async function loadSetCatalogue(setDefinition) {
   if (catalogueStateBySetKey.get(setDefinition.key) === 'loading') return;
 
   const cacheEnvelope = readCachedCatalogue(setDefinition.key);
   const cacheIsFresh = cacheEnvelope && (Date.now() - cacheEnvelope.savedAt) < TCG_CONFIG.CACHE_LIFETIME_MS;
+  let paintedFromCache = false;
 
   // Paint from a fresh cache immediately, then refresh from the network behind it.
   if (cacheIsFresh) {
@@ -459,16 +467,21 @@ async function loadSetCatalogue(setDefinition) {
     catalogueStateBySetKey.set(setDefinition.key, 'ready');
     rebuildPriceIndex();
     renderCardGrid({ animateEntry: true });
+    paintedFromCache = true;
   }
 
   catalogueStateBySetKey.set(setDefinition.key, 'loading');
   renderSetPicker();
   updateLoadingIndicator();
 
+  const previousSignature = catalogueSignature(catalogueBySetKey.get(setDefinition.key));
+  let contentChanged = true;
+
   try {
     const retrievedCards = await fetchSetCatalogueWithRetry(setDefinition);
     writeCachedCatalogue(setDefinition.key, retrievedCards);
 
+    contentChanged = catalogueSignature(retrievedCards) !== previousSignature;
     catalogueBySetKey.set(setDefinition.key, retrievedCards);
     catalogueStateBySetKey.set(setDefinition.key, 'ready');
   } catch (exceptionContext) {
@@ -477,6 +490,7 @@ async function loadSetCatalogue(setDefinition) {
     if (cacheEnvelope) {
       catalogueBySetKey.set(setDefinition.key, cacheEnvelope.cards);
       catalogueStateBySetKey.set(setDefinition.key, 'stale');
+      contentChanged = !paintedFromCache;
       updateSetStatusLine(`${setDefinition.label}: API unreachable — showing your last saved copy.`, 'warn');
     } else {
       catalogueStateBySetKey.set(setDefinition.key, 'error');
@@ -484,10 +498,20 @@ async function loadSetCatalogue(setDefinition) {
     }
   }
 
-  rebuildPriceIndex();
   renderSetPicker();
-  renderCardGrid({ animateEntry: true });
   updateLoadingIndicator();
+
+  // The overwhelmingly common warm-load case: the network returned exactly what
+  // the cache already put on screen. Repainting it would destroy and recreate
+  // every card image for no visible gain, which is what the load flicker was.
+  if (!contentChanged) {
+    rebuildPriceIndex();
+    updateDashboardMetrics();
+    return;
+  }
+
+  rebuildPriceIndex();
+  renderCardGrid({ animateEntry: !paintedFromCache });
 }
 
 function ensureSelectedCataloguesLoaded() {
@@ -503,8 +527,21 @@ function ensureSelectedCataloguesLoaded() {
 
 function updateLoadingIndicator() {
   const stillLoading = selectedSetKeys.filter(setKey => catalogueStateBySetKey.get(setKey) === 'loading');
+  const failed = selectedSetKeys.filter(setKey => catalogueStateBySetKey.get(setKey) === 'error');
   const DOMLoadingWorkspace = document.getElementById('loadingWorkspace');
   if (!DOMLoadingWorkspace) return;
+
+  // Nothing on screen and nothing still in flight means every selected set
+  // failed with no cache to fall back on. Offer a way out rather than leaving
+  // the page blank until the user thinks to reload.
+  if (failed.length > 0 && stillLoading.length === 0 && !anySelectedCatalogueLoaded()) {
+    renderCatalogueFailure(failed);
+    return;
+  }
+
+  // Clear any failure panel left from an earlier attempt before deciding what to
+  // show, so stale error markup can never resurface on a later loading state.
+  restoreLoadingSkeleton();
 
   const shouldShowSkeleton = stillLoading.length > 0 && !anySelectedCatalogueLoaded();
   DOMLoadingWorkspace.classList.toggle('hidden', !shouldShowSkeleton);
@@ -514,6 +551,52 @@ function updateLoadingIndicator() {
     const labels = stillLoading.map(setKey => (findSetDefinition(setKey) || {}).label || setKey);
     DOMNote.textContent = `LOADING ${labels.join(', ').toUpperCase()}…`;
   }
+}
+
+const LOADING_SKELETON_MARKUP = `
+  <div class="load-note" id="loadingNote"><span class="pulse-dot"></span>LOADING SET LIST…</div>
+  <div class="skeleton"></div>
+  <div class="skeleton" style="animation-delay:0.1s"></div>
+  <div class="skeleton" style="animation-delay:0.2s"></div>
+  <div class="skeleton" style="animation-delay:0.3s"></div>
+  <div class="skeleton" style="animation-delay:0.4s"></div>
+`;
+
+// The workspace holds either the skeleton or a failure panel. Its own state is
+// recorded on the container rather than inferred by probing for a child id,
+// which is both cheaper and unambiguous.
+function restoreLoadingSkeleton() {
+  const DOMLoadingWorkspace = document.getElementById('loadingWorkspace');
+  if (!DOMLoadingWorkspace || DOMLoadingWorkspace.dataset.state === 'skeleton') return;
+  DOMLoadingWorkspace.innerHTML = LOADING_SKELETON_MARKUP;
+  DOMLoadingWorkspace.dataset.state = 'skeleton';
+}
+
+function renderCatalogueFailure(failedSetKeys) {
+  const DOMLoadingWorkspace = document.getElementById('loadingWorkspace');
+  const labels = failedSetKeys.map(setKey => (findSetDefinition(setKey) || {}).label || setKey);
+
+  DOMLoadingWorkspace.classList.remove('hidden');
+  DOMLoadingWorkspace.dataset.state = 'fault';
+  DOMLoadingWorkspace.innerHTML = `
+    <div class="load-fault">
+      <p>Could not reach the Pok&eacute;mon TCG API for ${escapeMarkupText(labels.join(', '))}.</p>
+      <p class="load-fault-note">The API returns intermittent errors; retrying usually works.</p>
+      <button type="button" id="retryCatalogueButton" class="btn-primary">RETRY</button>
+    </div>
+  `;
+  document.getElementById('retryCatalogueButton')
+    .addEventListener('click', () => retryFailedCatalogues());
+}
+
+function retryFailedCatalogues() {
+  selectedSetKeys.forEach(setKey => {
+    if (catalogueStateBySetKey.get(setKey) === 'error') catalogueStateBySetKey.delete(setKey);
+  });
+  updateSetStatusLine('');
+  restoreLoadingSkeleton();
+  document.getElementById('loadingWorkspace').classList.remove('hidden');
+  ensureSelectedCataloguesLoaded();
 }
 
 /* ---------------------------------------------------------------------------
@@ -627,7 +710,10 @@ async function loadPriceSnapshot() {
   renderSetPicker();
   syncPriceBasisControls();
   ensureSelectedCataloguesLoaded();
-  renderCardGrid();
+
+  // Only paint here if a warm cache has not already put cards on screen —
+  // otherwise this would be a second full rebuild of a grid that is already correct.
+  if (!anySelectedCatalogueLoaded()) renderCardGrid();
   updateDashboardMetrics();
 }
 
@@ -849,7 +935,7 @@ function composeCardMarkup(card, showSetBadge) {
 
     <div class="art">
       ${card.imageUrl
-        ? `<img class="art-img" src="${escapeMarkupText(card.imageUrl)}" alt="${safeCardName}" loading="lazy">`
+        ? `<img class="art-img" src="${escapeMarkupText(card.imageUrl)}" alt="${safeCardName}" loading="lazy" decoding="async">`
         : `<span class="art-fallback">🖤</span>`}
     </div>
 
