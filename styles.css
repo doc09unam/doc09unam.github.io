@@ -85,6 +85,84 @@ body {
 .box-value--green { color: var(--green); }
 .box-value--amber { color: var(--amber); }
 
+/* --- Set picker ---------------------------------------------------------- */
+
+.set-picker { position: relative; margin-top: 10px; display: inline-block; }
+
+.set-picker-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: border-color 150ms ease;
+}
+.set-picker-button:hover { border-color: var(--line-bright); }
+.set-picker-caption {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.set-picker-caret { color: var(--text-dim); font-size: 10px; }
+
+.set-picker-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  min-width: 260px;
+  background: var(--surface);
+  border: 1px solid var(--line-bright);
+  border-radius: 10px;
+  padding: 8px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
+}
+.set-picker-actions {
+  display: flex;
+  gap: 14px;
+  padding: 4px 8px 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+
+.set-option {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.set-option:hover { background: var(--surface-raised); }
+.set-option input { accent-color: var(--indigo-strong); cursor: pointer; margin: 0; }
+.set-option-label { color: var(--text); }
+.set-option-note { color: var(--text-dim); font-size: 10px; font-variant-numeric: tabular-nums; }
+
+.set-badge {
+  align-self: flex-start;
+  margin-top: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--violet);
+  background: rgba(167, 139, 250, 0.1);
+  border: 1px solid rgba(167, 139, 250, 0.28);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
 .box-note {
   font-size: 9px;
   color: var(--text-dim);
@@ -375,6 +453,7 @@ body {
   max-width: 110px;
 }
 .rarity--common { color: #94a3b8; border-color: #334155; background: #1e293b66; }
+.rarity--rare-holo { color: #c4b5fd; border-color: #6d28d980; background: #2e1065aa; }
 .rarity--uncommon { color: #7dd3fc; border-color: #0369a180; background: #0c4a6e40; }
 .rarity--rare { color: #a5b4fc; border-color: #4338ca80; background: #31215940; }
 .rarity--double-rare { color: #fcd34d; border-color: #b4530980; background: #45200940; }

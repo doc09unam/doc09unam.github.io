@@ -1,0 +1,151 @@
+{
+  "_comment": "Shared set registry: read by build-price-index.py, audit-price-mapping.py and tcg-app.js. anchorNames pin the Cardmarket expansion by fingerprint; expectedProducts disambiguates when several expansions carry the same card names (Base Set 4169 has one product per card, while 1523 splits 1st Edition / Shadowless / Unlimited across 211 products and cannot be paired against a card API that models only one printing).",
+  "sets": [
+    {
+      "key": "me5",
+      "label": "Pitch Black",
+      "apiSetId": "me5",
+      "setTotal": 120,
+      "expectedProducts": 120,
+      "anchorNames": [
+        "Mega Darkrai ex",
+        "Mega Zeraora ex",
+        "Mega Chandelure ex",
+        "Mega Excadrill ex",
+        "Mega Delphox ex",
+        "Mega Slowbro ex"
+      ]
+    },
+    {
+      "key": "base1",
+      "label": "Base Set",
+      "apiSetId": "base1",
+      "setTotal": 102,
+      "expectedProducts": 102,
+      "anchorNames": [
+        "Charizard",
+        "Blastoise",
+        "Venusaur",
+        "Alakazam",
+        "Chansey",
+        "Clefairy",
+        "Gyarados",
+        "Hitmonchan",
+        "Machamp",
+        "Magneton",
+        "Mewtwo",
+        "Nidoking",
+        "Ninetales",
+        "Poliwrath",
+        "Raichu",
+        "Zapdos"
+      ],
+      "pricingCaveat": "Cardmarket lists Base Set under two expansions. This tracker uses 4169, which carries exactly one product per card. The other, 1523, splits 1st Edition / Shadowless / Unlimited across 211 products and cannot be paired against a card API that models one printing per card. So these are 4169's prices, not 1st Edition."
+    },
+    {
+      "key": "base2",
+      "label": "Jungle",
+      "apiSetId": "base2",
+      "setTotal": 64,
+      "expectedProducts": 66,
+      "anchorNames": [
+        "Kangaskhan",
+        "Scyther",
+        "Snorlax",
+        "Vaporeon",
+        "Jolteon",
+        "Flareon",
+        "Wigglytuff",
+        "Pinsir",
+        "Electrode",
+        "Mr. Mime",
+        "Vileplume",
+        "Victreebel"
+      ],
+      "pricingCaveat": "Cardmarket does not split 1st Edition from Unlimited in this expansion, so every price here is for a single unidentified printing."
+    },
+    {
+      "key": "base3",
+      "label": "Fossil",
+      "apiSetId": "base3",
+      "setTotal": 62,
+      "expectedProducts": 63,
+      "anchorNames": [
+        "Aerodactyl",
+        "Articuno",
+        "Ditto",
+        "Dragonite",
+        "Gengar",
+        "Haunter",
+        "Hitmonlee",
+        "Hypno",
+        "Kabutops",
+        "Lapras",
+        "Moltres",
+        "Muk",
+        "Omastar"
+      ],
+      "pricingCaveat": "Cardmarket does not split 1st Edition from Unlimited in this expansion, so every price here is for a single unidentified printing."
+    },
+    {
+      "key": "base5",
+      "label": "Team Rocket",
+      "apiSetId": "base5",
+      "setTotal": 83,
+      "expectedProducts": 84,
+      "anchorNames": [
+        "Dark Charizard",
+        "Dark Blastoise",
+        "Dark Alakazam",
+        "Dark Dragonite",
+        "Dark Gyarados",
+        "Dark Machamp",
+        "Dark Magneton",
+        "Dark Slowbro",
+        "Dark Vileplume",
+        "Dark Weezing",
+        "Dark Hypno",
+        "Dark Golbat"
+      ],
+      "pricingCaveat": "Cardmarket does not split 1st Edition from Unlimited in this expansion, so every price here is for a single unidentified printing."
+    },
+    {
+      "key": "gym1",
+      "label": "Gym Heroes",
+      "apiSetId": "gym1",
+      "setTotal": 132,
+      "expectedProducts": 133,
+      "anchorNames": [
+        "Blaine's Moltres",
+        "Brock's Rhydon",
+        "Erika's Dratini",
+        "Misty's Seadra",
+        "Sabrina's Gengar",
+        "Lt. Surge's Electabuzz",
+        "Erika's Clefable",
+        "Brock's Zubat",
+        "Misty's Tentacruel"
+      ],
+      "pricingCaveat": "Cardmarket does not split 1st Edition from Unlimited in this expansion, so every price here is for a single unidentified printing."
+    },
+    {
+      "key": "gym2",
+      "label": "Gym Challenge",
+      "apiSetId": "gym2",
+      "setTotal": 132,
+      "expectedProducts": 132,
+      "anchorNames": [
+        "Blaine's Arcanine",
+        "Brock's Ninetales",
+        "Erika's Venusaur",
+        "Giovanni's Machamp",
+        "Koga's Beedrill",
+        "Sabrina's Alakazam",
+        "Blaine's Charizard",
+        "Giovanni's Nidoking",
+        "Koga's Ditto"
+      ],
+      "pricingCaveat": "Cardmarket does not split 1st Edition from Unlimited in this expansion, so every price here is for a single unidentified printing."
+    }
+  ]
+}

@@ -3,15 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pitch Black — Portfolio Tracker</title>
+  <title>Pokémon TCG — Portfolio Tracker</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
   <header class="top-bar">
     <div class="brand">
-      <h1>🖤 PITCH BLACK <span class="brand-code">(ME05)</span></h1>
-      <p class="brand-sub">Mega Evolution · 84 numbered + secrets · 120 total</p>
+      <h1>🖤 POKÉMON TCG <span class="brand-code">PORTFOLIO</span></h1>
+      <p class="brand-sub">Cardmarket-priced collection tracker</p>
+
+      <div class="set-picker" id="setPicker">
+        <button type="button" class="set-picker-button" id="setPickerButton"
+                aria-haspopup="true" aria-expanded="false">
+          <span class="set-picker-caption">Sets</span>
+          <span id="setPickerSummary">Pitch Black</span>
+          <span class="set-picker-caret" aria-hidden="true">▾</span>
+        </button>
+
+        <div class="set-picker-panel hidden" id="setPickerPanel">
+          <div class="set-picker-actions">
+            <button type="button" class="inline-link-btn" id="setPickerAll">Select all</button>
+            <button type="button" class="inline-link-btn" id="setPickerNone">Clear</button>
+          </div>
+          <div id="setPickerOptions"></div>
+        </div>
+      </div>
     </div>
 
     <div class="header-right">
@@ -22,10 +39,10 @@
         </div>
         <div class="box">
           <div class="box-label">Unique</div>
-          <div class="box-value box-value--green" id="metricUnique">0 / 120</div>
+          <div class="box-value box-value--green" id="metricUnique">0 / 0</div>
         </div>
         <div class="box">
-          <div class="box-label">Set Completion</div>
+          <div class="box-label">Completion</div>
           <div class="box-value box-value--green" id="metricCompletion">0%</div>
           <div class="completion-track"><div class="completion-fill" id="completionBar"></div></div>
         </div>
@@ -61,7 +78,7 @@
         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
       </svg>
       <input type="text" id="liveSearchInput" class="search-input"
-             placeholder="Search name, #74 or rarity…" aria-label="Search cards">
+             placeholder="Search name, #74, rarity or set…" aria-label="Search cards">
     </div>
 
     <div class="io-buttons">
@@ -95,7 +112,7 @@
 
   <!-- Skeleton loading state: mirrors the eventual card grid shape -->
   <div id="loadingWorkspace" class="grid">
-    <div class="load-note"><span class="pulse-dot"></span>LOADING PITCH BLACK SET LIST…</div>
+    <div class="load-note" id="loadingNote"><span class="pulse-dot"></span>LOADING SET LIST…</div>
     <div class="skeleton"></div>
     <div class="skeleton" style="animation-delay:0.1s"></div>
     <div class="skeleton" style="animation-delay:0.2s"></div>
@@ -119,7 +136,7 @@
 
   <footer class="page-footer">
     <span>Card data · pokemontcg.io</span>
-    <span>Prices · Cardmarket snapshot via build-price-index.py</span>
+    <span>Prices · Cardmarket snapshot via build-price-index.py · best-guess matches listed in PRICE-MAPPING-NOTES.md</span>
   </footer>
 
   <script src="tcg-app.js"></script>
