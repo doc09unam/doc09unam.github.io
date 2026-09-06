@@ -814,7 +814,10 @@ function setPriceBasis(nextBasisKey) {
   }
 
   syncPriceBasisControls();
-  renderCardGrid();
+
+  // Only the valuation changed, so repoint the rendered cards rather than
+  // rebuilding the grid and recreating every image.
+  if (!refreshRenderedCardValues()) renderCardGrid();
 }
 
 function syncPriceBasisControls() {
@@ -958,6 +961,74 @@ function paintCardElement(cardNodeElement, card, shouldAnimateEntry, showSetBadg
   cardNodeElement.innerHTML = composeCardMarkup(card, showSetBadge);
 }
 
+// Updates the values on an already-rendered card without touching its markup.
+//
+// Rewriting innerHTML would destroy and recreate the <img>, making the artwork
+// blink every time a count or the price basis changes. Only the text, classes
+// and disabled states that actually differ are written here, so the image
+// element is left completely alone.
+//
+// Returns false when the card's structure has changed (a variant row appearing
+// or disappearing), in which case the caller must do a full repaint.
+function updateCardValuesInPlace(cardNodeElement, card) {
+  if (typeof cardNodeElement.querySelectorAll !== 'function') return false;
+
+  const variantRows = variantRowsForCard(card);
+  const rowNodes = cardNodeElement.querySelectorAll('.variant-row');
+  if (rowNodes.length !== variantRows.length) return false;
+
+  const totalCopies = totalCopiesForCard(card.id);
+  cardNodeElement.classList.toggle('card--active', totalCopies > 0);
+
+  const DOMHeldRow = cardNodeElement.querySelector('.held-row');
+  if (DOMHeldRow) {
+    DOMHeldRow.classList.toggle('held-row--active', totalCopies > 0);
+    const DOMHeldLabel = DOMHeldRow.querySelector('span');
+    const DOMHeldValue = DOMHeldRow.querySelector('strong');
+    if (DOMHeldLabel) DOMHeldLabel.textContent = totalCopies > 0 ? `Held · ${totalCopies}` : 'Not held';
+    if (DOMHeldValue) DOMHeldValue.textContent = formatEuroAmount(heldValueForCard(card));
+  }
+
+  variantRows.forEach((variantRow, rowIndex) => {
+    const rowNode = rowNodes[rowIndex];
+    const DOMPrice = rowNode.querySelector('.variant-price');
+    const DOMValue = rowNode.querySelector('.step-value');
+    const DOMMinus = rowNode.querySelector('[data-step="-1"]');
+
+    if (DOMPrice) {
+      DOMPrice.textContent = variantRow.unitPrice === null ? '—' : formatEuroAmount(variantRow.unitPrice);
+    }
+    if (DOMValue) {
+      DOMValue.textContent = String(variantRow.count);
+      DOMValue.classList.toggle('step-value--held', variantRow.count > 0);
+    }
+    if (DOMMinus) DOMMinus.disabled = variantRow.count === 0;
+  });
+
+  return true;
+}
+
+// Repoints every rendered card at the current prices without rebuilding the grid.
+// Used when only the valuation changed, not which cards are on screen.
+function refreshRenderedCardValues() {
+  const DOMGridContainer = document.getElementById('cardGridContainer');
+  if (!DOMGridContainer || typeof DOMGridContainer.querySelectorAll !== 'function') return false;
+
+  const cardNodes = DOMGridContainer.querySelectorAll('[data-card-id]');
+  if (cardNodes.length === 0) return false;
+
+  const cardsById = new Map(selectedCards().map(card => [card.id, card]));
+
+  for (let nodeIndex = 0; nodeIndex < cardNodes.length; nodeIndex++) {
+    const cardNodeElement = cardNodes[nodeIndex];
+    const cardEntity = cardsById.get(cardNodeElement.dataset.cardId);
+    if (!cardEntity || !updateCardValuesInPlace(cardNodeElement, cardEntity)) return false;
+  }
+
+  updateDashboardMetrics();
+  return true;
+}
+
 function selectVisibleCards() {
   const uniformQueryString = currentSearchFilterString.toLowerCase().trim();
   const numericQuery = uniformQueryString.replace(/^#/, '');
@@ -1064,7 +1135,11 @@ function adjustVariantCount(cardId, variantKey, deltaValue) {
     return;
   }
 
-  paintCardElement(cardNodeElement, cardEntity, false, selectedSetKeys.length > 1);
+  // Patch the values in place so the artwork never blinks; fall back to a full
+  // repaint only if a variant row appeared or disappeared.
+  if (!updateCardValuesInPlace(cardNodeElement, cardEntity)) {
+    paintCardElement(cardNodeElement, cardEntity, false, selectedSetKeys.length > 1);
+  }
   updateDashboardMetrics();
 }
 
