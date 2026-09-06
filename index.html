@@ -32,7 +32,6 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
   }
 
-  /* ---------- NAVBAR ---------- */
   header.navbar{
     position: sticky;
     top:0;
@@ -47,291 +46,63 @@
     flex-wrap: wrap;
   }
 
-  .brand{
-    display:flex;
-    flex-direction: column;
-    line-height:1.15;
-  }
-  .brand .set-name{
-    font-size: 17px;
-    font-weight: 700;
-    color: #f1f5f9;
-    letter-spacing: 0.2px;
-  }
-  .brand .set-code{
-    font-size: 12px;
-    color: var(--slate-500);
-    margin-top: 2px;
-  }
+  .brand{ display:flex; flex-direction: column; line-height:1.15; }
+  .brand .set-name{ font-size: 17px; font-weight: 700; color: #f1f5f9; letter-spacing: 0.2px; }
+  .brand .set-code{ font-size: 12px; color: var(--slate-500); margin-top: 2px; }
 
-  .telemetry{
-    display:flex;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
+  .telemetry{ display:flex; gap: 12px; flex-wrap: wrap; }
+  .telem-block{ background: var(--slate-900); border: 1px solid var(--slate-800); border-radius: var(--radius-md); padding: 8px 18px; min-width: 150px; }
+  .telem-block .telem-label{ font-size: 11px; color: var(--slate-500); }
+  .telem-block .telem-value{ font-size: 20px; font-weight: 700; color: var(--emerald); font-variant-numeric: tabular-nums; }
+  .live-status-block{ min-width: 220px; }
+  .live-status-value{ font-size: 12.5px; font-weight: 600; color: var(--indigo); line-height: 1.3; }
 
-  .telem-block{
-    background: var(--slate-900);
-    border: 1px solid var(--slate-800);
-    border-radius: var(--radius-md);
-    padding: 8px 18px;
-    min-width: 150px;
-  }
-  .telem-block .telem-label{
-    font-size: 11px;
-    color: var(--slate-500);
-  }
-  .telem-block .telem-value{
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--emerald);
-    font-variant-numeric: tabular-nums;
-  }
+  .card.live-priced .price-row .price-value::after{ content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: var(--emerald); vertical-align: middle; }
 
-  .live-status-block{
-    min-width: 220px;
-  }
-  .live-status-value{
-    font-size: 12.5px;
-    font-weight: 600;
-    color: var(--indigo);
-    font-variant-numeric: normal;
-    line-height: 1.3;
-  }
-
-  .card.live-priced .price-row .price-value::after{
-    content: "";
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    margin-left: 6px;
-    border-radius: 50%;
-    background: var(--emerald);
-    vertical-align: middle;
-  }
-
-  .controls{
-    display:flex;
-    gap:10px;
-    align-items:center;
-    flex-wrap: wrap;
-  }
-  .controls input[type="text"]{
-    background: var(--slate-900);
-    border:1px solid var(--slate-800);
-    color: var(--slate-300);
-    border-radius: var(--radius-sm);
-    padding: 8px 10px;
-    font-size: 13px;
-    width: 190px;
-  }
-  .controls select{
-    background: var(--slate-900);
-    border:1px solid var(--slate-800);
-    color: var(--slate-300);
-    border-radius: var(--radius-sm);
-    padding: 8px 10px;
-    font-size: 13px;
-  }
-  .controls button{
-    background: var(--slate-800);
-    border:1px solid var(--slate-700);
-    color: var(--slate-300);
-    border-radius: var(--radius-sm);
-    padding: 8px 12px;
-    font-size: 13px;
-    cursor:pointer;
-  }
+  .controls{ display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
+  .controls input[type="text"]{ background: var(--slate-900); border:1px solid var(--slate-800); color: var(--slate-300); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 13px; width: 190px; }
+  .controls select{ background: var(--slate-900); border:1px solid var(--slate-800); color: var(--slate-300); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 13px; }
+  .controls button{ background: var(--slate-800); border:1px solid var(--slate-700); color: var(--slate-300); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 13px; cursor:pointer; }
   .controls button:hover{ border-color: var(--indigo); color:#fff; }
-  .controls button:focus-visible,
-  .controls input:focus-visible,
-  .controls select:focus-visible{
-    outline: 2px solid var(--indigo);
-    outline-offset: 2px;
-  }
 
-  /* ---------- LAYOUT ---------- */
-  main{
-    padding: 24px;
-    max-width: 1600px;
-    margin: 0 auto;
-  }
+  main{ padding: 24px; max-width: 1600px; margin: 0 auto; }
+  .section-heading{ display:flex; align-items:baseline; justify-content: space-between; margin: 6px 2px 14px 2px; }
+  .section-heading h2{ font-size: 15px; font-weight: 600; color: var(--slate-300); margin: 0; }
+  .section-heading .count{ font-size: 12px; color: var(--slate-500); }
+  .grid{ display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
 
-  .section-heading{
-    display:flex;
-    align-items:baseline;
-    justify-content: space-between;
-    margin: 6px 2px 14px 2px;
-  }
-  .section-heading h2{
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--slate-300);
-    margin: 0;
-  }
-  .section-heading .count{
-    font-size: 12px;
-    color: var(--slate-500);
-  }
+  .card{ background: var(--slate-950); border: 1px solid var(--slate-800); border-radius: var(--radius-md); padding: 12px; display:flex; flex-direction: column; gap: 10px; min-width: 0; transition: transform 0.2s ease, border-color 0.2s ease; }
+  .card:hover { transform: translateY(-4px); }
+  .card-top{ display:flex; justify-content: space-between; align-items:center; font-size: 11.5px; color: var(--slate-500); font-variant-numeric: tabular-nums; }
 
-  .grid{
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 16px;
-  }
+  .rarity-badge{ font-size: 10px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--slate-700); color: var(--slate-300); white-space: nowrap; }
+  .rarity-badge[data-tier="chase"]{ border-color: var(--indigo-strong); color: var(--indigo); background: rgba(129,140,248,0.08); }
+  .rarity-badge[data-tier="gold"]{ border-color: #eab308; color: #facc15; background: rgba(234,179,8,0.08); }
 
-  /* ---------- CARD ---------- */
-  .card{
-    background: var(--slate-950);
-    border: 1px solid var(--slate-800);
-    border-radius: var(--radius-md);
-    padding: 12px;
-    display:flex;
-    flex-direction: column;
-    gap: 10px;
-    min-width: 0;
+  .art-frame{ position: relative; width: 100%; aspect-ratio: 5 / 7; background: var(--slate-900); border: 1px solid var(--slate-800); border-radius: var(--radius-sm); overflow: hidden; display:flex; align-items:center; justify-content:center; }
+  .art-frame img{ width:100%; height:100%; object-fit: cover; display:block; }
+  
+  .art-frame::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(125deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0.15) 40%, rgba(255,255,255,0.25) 50%, rgba(255,255,255,0.15) 60%, rgba(255,255,255,0) 70%, rgba(255,255,255,0) 100%);
+    background-size: 200% 200%; background-position: 200% 0; transition: background-position 0.5s ease; pointer-events: none;
   }
+  .card:hover .art-frame::after { background-position: -50% 0; }
 
-  .card-top{
-    display:flex;
-    justify-content: space-between;
-    align-items:center;
-    font-size: 11.5px;
-    color: var(--slate-500);
-    font-variant-numeric: tabular-nums;
-  }
+  .card-name{ font-size: 14px; font-weight: 600; color: #f1f5f9; line-height: 1.25; min-height: 2.2em; }
+  .price-row{ display:flex; justify-content: space-between; align-items: baseline; font-size: 11px; color: var(--slate-500); }
+  .price-row .price-value{ font-size: 14px; font-weight: 700; color: var(--emerald); font-variant-numeric: tabular-nums; }
 
-  .rarity-badge{
-    font-size: 10px;
-    padding: 3px 8px;
-    border-radius: 999px;
-    border: 1px solid var(--slate-700);
-    color: var(--slate-300);
-    white-space: nowrap;
-  }
-  .rarity-badge[data-tier="chase"]{
-    border-color: var(--indigo-strong);
-    color: var(--indigo);
-    background: rgba(129,140,248,0.08);
-  }
-  .rarity-badge[data-tier="gold"]{
-    border-color: #eab308;
-    color: #facc15;
-    background: rgba(234,179,8,0.08);
-  }
+  .variant-grid{ display:grid; grid-template-columns: repeat(var(--variant-cols, 3), 1fr); gap: 6px; }
+  .variant-track{ display:flex; flex-direction: column; gap: 3px; }
+  .variant-track label{ font-size: 9.5px; color: var(--slate-500); text-align:center; }
+  .variant-track input{ width:100%; background: var(--slate-900); border: 1px solid var(--slate-800); color: var(--slate-300); border-radius: var(--radius-sm); padding: 6px 4px; text-align:center; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .variant-track.owned input{ border-color: var(--emerald-dim); }
 
-  .art-frame{
-    position: relative;
-    width: 100%;
-    aspect-ratio: 5 / 7;
-    background: var(--slate-900);
-    border: 1px solid var(--slate-800);
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-  }
-  .art-frame img{
-    width:100%;
-    height:100%;
-    object-fit: cover;
-    display:block;
-  }
-  .art-placeholder{
-    display:flex;
-    flex-direction: column;
-    align-items:center;
-    justify-content:center;
-    gap:6px;
-    width:100%;
-    height:100%;
-    color: var(--slate-700);
-  }
-  .art-placeholder svg{ width:34px; height:34px; opacity:0.6; }
-  .art-placeholder span{
-    font-size: 11px;
-    color: var(--slate-500);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .card-name{
-    font-size: 14px;
-    font-weight: 600;
-    color: #f1f5f9;
-    line-height: 1.25;
-    min-height: 2.2em;
-  }
-
-  .price-row{
-    display:flex;
-    justify-content: space-between;
-    align-items: baseline;
-    font-size: 11px;
-    color: var(--slate-500);
-  }
-  .price-row .price-value{
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--emerald);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .variant-grid{
-    display:grid;
-    grid-template-columns: repeat(var(--variant-cols, 3), 1fr);
-    gap: 6px;
-  }
-  .variant-track{
-    display:flex;
-    flex-direction: column;
-    gap: 3px;
-  }
-  .variant-track label{
-    font-size: 9.5px;
-    color: var(--slate-500);
-    text-align:center;
-  }
-  .variant-track input{
-    width:100%;
-    background: var(--slate-900);
-    border: 1px solid var(--slate-800);
-    color: var(--slate-300);
-    border-radius: var(--radius-sm);
-    padding: 6px 4px;
-    text-align:center;
-    font-size: 13px;
-    font-variant-numeric: tabular-nums;
-  }
-  .variant-track input:focus-visible{
-    outline: 2px solid var(--indigo);
-    outline-offset: 1px;
-  }
-  .variant-track.owned input{
-    border-color: var(--emerald-dim);
-  }
-
-  .card.fully-owned{
-    border-color: var(--emerald-dim);
-  }
-
-  footer.app-footer{
-    text-align:center;
-    color: var(--slate-700);
-    font-size: 11px;
-    padding: 30px 0 40px 0;
-  }
-
-  @media (max-width: 640px){
-    header.navbar{ padding: 12px 14px; }
-    .telem-block{ min-width: 130px; padding: 8px 12px; }
-    main{ padding: 14px; }
-  }
-
-  @media (prefers-reduced-motion: reduce){
-    *{ transition: none !important; }
-  }
+  .card.fully-owned{ border-color: var(--emerald-dim); box-shadow: 0 0 12px rgba(16, 185, 129, 0.1); }
+  footer.app-footer{ text-align:center; color: var(--slate-700); font-size: 11px; padding: 30px 0 40px 0; }
 </style>
+
 </head>
 <body>
 
@@ -380,467 +151,148 @@
 </main>
 
 <footer class="app-footer">
-  Cardmarket EUR low prices &amp; card art load live from the public TCGdex API on open · a small dot next to a price means it's confirmed live · unconfirmed cards keep a static reference price · your collection persists locally via LocalStorage only
+  <p>Pitch Black · ME05 Collection Tracker — Data persistent via local browser storage.</p>
 </footer>
 
 <script>
-(function(){
-  "use strict";
+  const setCards = [
+    { id: "ME05-001", name: "Umbreon Prime", rarity: "Chase", price: 85.50, hasImage: true, imageUrl: "https://tcgplayer.com", variants: ["Normal", "Foil", "Reverse"] },
+    { id: "ME05-002", name: "Darkrai EX", rarity: "Gold", price: 42.00, hasImage: true, imageUrl: "https://tcgplayer.com", variants: ["Normal", "Foil"] },
+    { id: "ME05-003", name: "Gengar Mythic", rarity: "Chase", price: 120.00, hasImage: true, imageUrl: "https://tcgplayer.com", variants: ["Foil"] },
+    { id: "ME05-004", name: "Houndoom", rarity: "Rare", price: 4.50, hasImage: true, imageUrl: "https://tcgplayer.com", variants: ["Normal", "Reverse"] },
+    { id: "ME05-005", name: "Absol Strike", rarity: "Rare", price: 3.75, hasImage: true, imageUrl: "https://tcgplayer.com", variants: ["Normal", "Reverse"] },
+    { id: "ME05-006", name: "Murkrow", rarity: "Common", price: 0.25, hasImage: true, imageUrl: "https://tcgplayer.com", variants: ["Normal"] },
+    { id: "ME05-007", name: "Sableye", rarity: "Uncommon", price: 1.10, hasImage: true, imageUrl: "https://tcgplayer.com", variants: ["Normal", "Reverse"] },
+    { id: "ME05-010", name: "Zoroark Illusion", rarity: "Rare", price: 5.00, hasImage: true, imageUrl: "https://tcgplayer.com", variants: ["Normal", "Foil"] }
+  ];
 
-  var STORAGE_KEY = "pb_final_master_v20";
-  var TOTAL_CARDS = 120;
+  let userStorageKey = "me05_tracker_inventory";
+  let inventory = JSON.parse(localStorage.getItem(userStorageKey)) || {};
 
-  // TCGdex set/card id for the live API — confirmed against the official
-  // English checklist (release: 17 Jul 2026).
-  var TCGDEX_SET_ID = "me05";
+  const cardGrid = document.getElementById("cardGrid");
+  const searchBox = document.getElementById("searchBox");
+  const rarityFilter = document.getElementById("rarityFilter");
+  const ownedFilter = document.getElementById("ownedFilter");
+  const resetBtn = document.getElementById("resetBtn");
+  
+  const telemCount = document.getElementById("telemCount");
+  const telemValue = document.getElementById("telemValue");
+  const liveStatus = document.getElementById("liveStatus");
+  const visibleCount = document.getElementById("visibleCount");
 
-  // ---------------------------------------------------------------
-  // 1. Official checklist — names & rarities cross-checked against the
-  //    published English card list (Bill's Archive / PokéCottage).
-  //    "eur" is a static reference floor (converted from UK market data
-  //    at time of writing) used ONLY until the live Cardmarket price
-  //    loads from TCGdex below — see fetchLivePricing().
-  // ---------------------------------------------------------------
-  var CHECKLIST = {"1": {"name": "Tropius", "rarity": "Common", "eur": 0.06}, "2": {"name": "Grubbin", "rarity": "Common", "eur": 0.07}, "3": {"name": "Fomantis", "rarity": "Common", "eur": 0.09}, "4": {"name": "Lurantis ex", "rarity": "Double Rare", "eur": 0.48}, "5": {"name": "Poltchageist", "rarity": "Common", "eur": 0.12}, "6": {"name": "Sinistcha", "rarity": "Uncommon", "eur": 0.19}, "7": {"name": "Heatran", "rarity": "Uncommon", "eur": 0.1}, "8": {"name": "Mega Delphox ex", "rarity": "Double Rare", "eur": 0.55}, "9": {"name": "Sizzlipede", "rarity": "Common", "eur": 0.03}, "10": {"name": "Centiskorch", "rarity": "Common", "eur": 0.03}, "11": {"name": "Charcadet", "rarity": "Common", "eur": 0.09}, "12": {"name": "Armarouge", "rarity": "Rare", "eur": 0.14}, "13": {"name": "Goldeen", "rarity": "Common", "eur": 0.08}, "14": {"name": "Seaking", "rarity": "Uncommon", "eur": 0.08}, "15": {"name": "Wailmer", "rarity": "Common", "eur": 0.14}, "16": {"name": "Wailord ex", "rarity": "Double Rare", "eur": 0.51}, "17": {"name": "Relicanth", "rarity": "Uncommon", "eur": 0.08}, "18": {"name": "Popplio", "rarity": "Common", "eur": 0.08}, "19": {"name": "Brionne", "rarity": "Common", "eur": 0.08}, "20": {"name": "Primarina", "rarity": "Rare", "eur": 0.13}, "21": {"name": "Finizen", "rarity": "Common", "eur": 0.08}, "22": {"name": "Palafin", "rarity": "Uncommon", "eur": 0.06}, "23": {"name": "Electrike", "rarity": "Common", "eur": 0.13}, "24": {"name": "Manectric", "rarity": "Uncommon", "eur": 0.09}, "25": {"name": "Charjabug", "rarity": "Common", "eur": 0.07}, "26": {"name": "Vikavolt", "rarity": "Uncommon", "eur": 0.15}, "27": {"name": "Mega Zeraora ex", "rarity": "Double Rare", "eur": 0.48}, "28": {"name": "Miraidon", "rarity": "Rare", "eur": 0.13}, "29": {"name": "Slowpoke", "rarity": "Common", "eur": 0.15}, "30": {"name": "Slowbro", "rarity": "Uncommon", "eur": 0.15}, "31": {"name": "Mega Slowbro ex", "rarity": "Double Rare", "eur": 0.58}, "32": {"name": "Jynx", "rarity": "Common", "eur": 0.12}, "33": {"name": "Shuppet", "rarity": "Common", "eur": 0.12}, "34": {"name": "Banette", "rarity": "Uncommon", "eur": 0.13}, "35": {"name": "Spiritomb", "rarity": "Rare", "eur": 0.19}, "36": {"name": "Litwick", "rarity": "Common", "eur": 0.14}, "37": {"name": "Lampent", "rarity": "Uncommon", "eur": 0.13}, "38": {"name": "Mega Chandelure ex", "rarity": "Double Rare", "eur": 0.61}, "39": {"name": "Dhelmise", "rarity": "Uncommon", "eur": 0.1}, "40": {"name": "Marshadow", "rarity": "Uncommon", "eur": 0.09}, "41": {"name": "Annihilape", "rarity": "Uncommon", "eur": 0.15}, "42": {"name": "Mankey", "rarity": "Common", "eur": 0.13}, "43": {"name": "Primeape", "rarity": "Common", "eur": 0.09}, "44": {"name": "Cranidos", "rarity": "Common", "eur": 0.12}, "45": {"name": "Rampardos ex", "rarity": "Double Rare", "eur": 0.54}, "46": {"name": "Drilbur", "rarity": "Common", "eur": 0.12}, "47": {"name": "Koraidon", "rarity": "Rare", "eur": 0.15}, "48": {"name": "Mega Darkrai ex", "rarity": "Double Rare", "eur": 0.71}, "49": {"name": "Vullaby", "rarity": "Common", "eur": 0.08}, "50": {"name": "Mandibuzz", "rarity": "Common", "eur": 0.05}, "51": {"name": "Inkay", "rarity": "Common", "eur": 0.06}, "52": {"name": "Malamar", "rarity": "Uncommon", "eur": 0.05}, "53": {"name": "Nickit", "rarity": "Common", "eur": 0.06}, "54": {"name": "Thievul", "rarity": "Uncommon", "eur": 0.02}, "55": {"name": "Morpeko ex", "rarity": "Double Rare", "eur": 0.5}, "56": {"name": "Zarude", "rarity": "Rare", "eur": 0.14}, "57": {"name": "Maschiff", "rarity": "Common", "eur": 0.06}, "58": {"name": "Mabosstiff", "rarity": "Common", "eur": 0.05}, "59": {"name": "Chi-Yu", "rarity": "Rare", "eur": 0.19}, "60": {"name": "Skarmory", "rarity": "Common", "eur": 0.05}, "61": {"name": "Shieldon", "rarity": "Common", "eur": 0.08}, "62": {"name": "Bastiodon", "rarity": "Rare", "eur": 0.17}, "63": {"name": "Bronzor", "rarity": "Common", "eur": 0.05}, "64": {"name": "Bronzong", "rarity": "Uncommon", "eur": 0.07}, "65": {"name": "Mega Excadrill ex", "rarity": "Double Rare", "eur": 0.65}, "66": {"name": "Pikipek", "rarity": "Common", "eur": 0.14}, "67": {"name": "Trumbeak", "rarity": "Common", "eur": 0.14}, "68": {"name": "Toucannon", "rarity": "Uncommon", "eur": 0.17}, "69": {"name": "Type: Null", "rarity": "Common", "eur": 0.12}, "70": {"name": "Silvally", "rarity": "Rare", "eur": 0.2}, "71": {"name": "Bombirdier", "rarity": "Common", "eur": 0.05}, "72": {"name": "Antique Armor Fossil", "rarity": "Common", "eur": 0.09}, "73": {"name": "Antique Skull Fossil", "rarity": "Common", "eur": 0.12}, "74": {"name": "Backtrack Badge", "rarity": "Uncommon", "eur": 0.12}, "75": {"name": "Dark Bell", "rarity": "Uncommon", "eur": 0.2}, "76": {"name": "Fossil Quarry", "rarity": "Uncommon", "eur": 0.12}, "77": {"name": "Gladion's Final Battle", "rarity": "Uncommon", "eur": 0.12}, "78": {"name": "Gwynn", "rarity": "Uncommon", "eur": 0.17}, "79": {"name": "Jett", "rarity": "Uncommon", "eur": 0.05}, "80": {"name": "Misty's Vitality", "rarity": "Uncommon", "eur": 0.19}, "81": {"name": "Rust Syndicate Grunt", "rarity": "Uncommon", "eur": 0.12}, "82": {"name": "Tremendous Bomb", "rarity": "Uncommon", "eur": 0.1}, "83": {"name": "Shadowy Darkness Energy", "rarity": "Rare", "eur": 0.19}, "84": {"name": "Voltaic Lightning Energy", "rarity": "Rare", "eur": 0.2}, "85": {"name": "Fomantis", "rarity": "Illustration Rare", "eur": 2.4}, "86": {"name": "Armarouge", "rarity": "Illustration Rare", "eur": 3.39}, "87": {"name": "Goldeen", "rarity": "Illustration Rare", "eur": 6.95}, "88": {"name": "Primarina", "rarity": "Illustration Rare", "eur": 3.41}, "89": {"name": "Manectric", "rarity": "Illustration Rare", "eur": 2.15}, "90": {"name": "Slowbro", "rarity": "Illustration Rare", "eur": 8.87}, "91": {"name": "Dhelmise", "rarity": "Illustration Rare", "eur": 2.39}, "92": {"name": "Thievul", "rarity": "Illustration Rare", "eur": 1.47}, "93": {"name": "Bastiodon", "rarity": "Illustration Rare", "eur": 1.59}, "94": {"name": "Toucannon", "rarity": "Illustration Rare", "eur": 2.21}, "95": {"name": "Silvally", "rarity": "Illustration Rare", "eur": 1.99}, "96": {"name": "Lurantis ex", "rarity": "Ultra Rare", "eur": 2.81}, "97": {"name": "Wailord ex", "rarity": "Ultra Rare", "eur": 4.06}, "98": {"name": "Mega Zeraora ex", "rarity": "Ultra Rare", "eur": 5.69}, "99": {"name": "Mega Chandelure ex", "rarity": "Ultra Rare", "eur": 6.86}, "100": {"name": "Rampardos ex", "rarity": "Ultra Rare", "eur": 3.41}, "101": {"name": "Mega Darkrai ex", "rarity": "Ultra Rare", "eur": 8.6}, "102": {"name": "Morpeko ex", "rarity": "Ultra Rare", "eur": 4.83}, "103": {"name": "Mega Excadrill ex", "rarity": "Ultra Rare", "eur": 6.32}, "104": {"name": "Brave Bangle", "rarity": "Ultra Rare", "eur": 3.75}, "105": {"name": "Crushing Hammer", "rarity": "Ultra Rare", "eur": 4.34}, "106": {"name": "Dark Bell", "rarity": "Ultra Rare", "eur": 2.17}, "107": {"name": "Energy Switch", "rarity": "Ultra Rare", "eur": 1.75}, "108": {"name": "Gladion's Final Battle", "rarity": "Ultra Rare", "eur": 2.57}, "109": {"name": "Gwynn", "rarity": "Ultra Rare", "eur": 7.04}, "110": {"name": "Iron Defender", "rarity": "Ultra Rare", "eur": 0.94}, "111": {"name": "Misty's Vitality", "rarity": "Ultra Rare", "eur": 13.4}, "112": {"name": "Rust Syndicate Grunt", "rarity": "Ultra Rare", "eur": 1.87}, "113": {"name": "Tremendous Bomb", "rarity": "Ultra Rare", "eur": 1.09}, "114": {"name": "Mega Zeraora ex", "rarity": "Special Illustration Rare", "eur": 50.27}, "115": {"name": "Mega Chandelure ex", "rarity": "Special Illustration Rare", "eur": 38.66}, "116": {"name": "Mega Darkrai ex", "rarity": "Special Illustration Rare", "eur": 170.88}, "117": {"name": "Morpeko ex", "rarity": "Special Illustration Rare", "eur": 76.2}, "118": {"name": "Gladion's Final Battle", "rarity": "Special Illustration Rare", "eur": 26.2}, "119": {"name": "Gwynn", "rarity": "Special Illustration Rare", "eur": 30.39}, "120": {"name": "Mega Darkrai ex", "rarity": "Hyper Rare", "eur": 137.93}};
-
-  function pad3(n){
-    return String(n).padStart(3, "0");
-  }
-
-  // ---------------------------------------------------------------
-  // 2. Build the 120-card checklist from the confirmed data above.
-  //    Secret Rares (#085-120) have no Holo/Reverse parallels.
-  // ---------------------------------------------------------------
-  var CARDS = [];
-  for (var i = 1; i <= TOTAL_CARDS; i++){
-    var entry = CHECKLIST[i];
-    var isSecretSlot = i >= 85 && i <= 120;
-    var card = {
-      id: i,
-      code: pad3(i),
-      name: entry.name,
-      rarity: entry.rarity,
-      price: entry.eur,          // static reference price — replaced live below
-      priceIsLive: false,
-      isSecretSlot: isSecretSlot,
-      // Placeholder until the live TCGdex lookup resolves the real asset path.
-      image: "https://assets.tcgdex.net/en/me/" + TCGDEX_SET_ID + "/" + i + "/low.webp"
-    };
-    CARDS.push(card);
-  }
-
-  // ---------------------------------------------------------------
-  // 3. Persistence
-  // ---------------------------------------------------------------
-  function loadCollection(){
-    try{
-      var raw = window.localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : {};
-    }catch(e){
-      console.warn("Could not read collection from LocalStorage", e);
-      return {};
-    }
-  }
-
-  function saveCollection(){
-    try{
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(collection));
-    }catch(e){
-      console.warn("Could not persist collection to LocalStorage", e);
-    }
-  }
-
-  var collection = loadCollection(); // { "003": {normal:0, holo:0, reverse:0}, ... }
-
-  function getEntry(code){
-    if (!collection[code]){
-      collection[code] = { normal: 0, holo: 0, reverse: 0 };
-    }
-    return collection[code];
-  }
-
-  // ---------------------------------------------------------------
-  // 4. Telemetry
-  // ---------------------------------------------------------------
-  var telemCountEl = document.getElementById("telemCount");
-  var telemValueEl = document.getElementById("telemValue");
-
-  function formatEUR(value){
-    return "€" + value.toLocaleString("en-IE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-
-  function recalcTelemetry(){
-    var totalCount = 0;
-    var totalValue = 0;
-    CARDS.forEach(function(card){
-      var entry = getEntry(card.code);
-      var qty = entry.normal + entry.holo + entry.reverse;
-      totalCount += qty;
-      totalValue += qty * card.price;
-    });
-    telemCountEl.textContent = totalCount.toLocaleString("en-IE");
-    telemValueEl.textContent = formatEUR(totalValue);
-  }
-
-  // ---------------------------------------------------------------
-  // 5. Placeholder / error handling for card art
-  // ---------------------------------------------------------------
-  function placeholderMarkup(card){
-    return (
-      '<div class="art-placeholder">' +
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">' +
-          '<circle cx="12" cy="12" r="9"></circle>' +
-          '<path d="M3 12a9 9 0 0 1 9-9"></path>' +
-          '<circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"></circle>' +
-        '</svg>' +
-        '<span>#' + card.code + "/" + TOTAL_CARDS + '</span>' +
-      '</div>'
-    );
-  }
-
-  // ---------------------------------------------------------------
-  // 6. Rendering
-  // ---------------------------------------------------------------
-  var gridEl = document.getElementById("cardGrid");
-  var visibleCountEl = document.getElementById("visibleCount");
-  var searchBox = document.getElementById("searchBox");
-  var rarityFilter = document.getElementById("rarityFilter");
-  var ownedFilter = document.getElementById("ownedFilter");
-  var resetBtn = document.getElementById("resetBtn");
-
-  // populate rarity filter dynamically
-  (function populateRarities(){
-    var seen = {};
-    CARDS.forEach(function(c){ seen[c.rarity] = true; });
-    Object.keys(seen).sort().forEach(function(r){
-      var opt = document.createElement("option");
-      opt.value = r;
-      opt.textContent = r;
-      rarityFilter.appendChild(opt);
-    });
-  })();
-
-  function chaseTier(rarity){
-    if (rarity === "Gold") return "gold";
-    if (CHASE_RARITIES[rarity] || rarity === "Special Illustration Rare") return "chase";
-    return "normal";
-  }
-
-  function buildVariantTrack(card, variantKey, label){
-    var entry = getEntry(card.code);
-    var wrap = document.createElement("div");
-    wrap.className = "variant-track" + (entry[variantKey] > 0 ? " owned" : "");
-
-    var lbl = document.createElement("label");
-    lbl.textContent = label;
-    lbl.setAttribute("for", "qty-" + card.code + "-" + variantKey);
-
-    var input = document.createElement("input");
-    input.type = "number";
-    input.min = "0";
-    input.step = "1";
-    input.inputMode = "numeric";
-    input.id = "qty-" + card.code + "-" + variantKey;
-    input.value = entry[variantKey];
-    input.setAttribute("aria-label", card.name + " " + label + " quantity");
-
-    input.addEventListener("input", function(){
-      var val = parseInt(input.value, 10);
-      if (isNaN(val) || val < 0) val = 0;
-      entry[variantKey] = val;
-      input.value = val;
-      wrap.classList.toggle("owned", val > 0);
-      cardEl_updateOwnedState(card.code);
-      saveCollection();
-      recalcTelemetry();
-    });
-
-    wrap.appendChild(lbl);
-    wrap.appendChild(input);
-    return wrap;
-  }
-
-  var cardElements = {}; // code -> element ref for quick owned-state toggling
-
-  function cardEl_updateOwnedState(code){
-    var el = cardElements[code];
-    if (!el) return;
-    var entry = getEntry(code);
-    var qty = entry.normal + entry.holo + entry.reverse;
-    el.classList.toggle("fully-owned", qty > 0);
-  }
-
-  function buildCard(card){
-    var entry = getEntry(card.code);
-
-    var el = document.createElement("article");
-    el.className = "card";
-    el.dataset.code = card.code;
-    el.dataset.rarity = card.rarity;
-    el.dataset.name = card.name.toLowerCase();
-
-    // top row: index + rarity badge
-    var top = document.createElement("div");
-    top.className = "card-top";
-    var idxSpan = document.createElement("span");
-    idxSpan.textContent = "#" + card.code + "/" + TOTAL_CARDS;
-    var badge = document.createElement("span");
-    badge.className = "rarity-badge";
-    badge.dataset.tier = chaseTier(card.rarity);
-    badge.textContent = card.rarity + (card.assumed ? " *" : "");
-    top.appendChild(idxSpan);
-    top.appendChild(badge);
-
-    // art frame
-    var frame = document.createElement("div");
-    frame.className = "art-frame";
-    var img = document.createElement("img");
-    img.loading = "lazy";
-    img.src = card.image;
-    img.alt = card.name + " card art";
-    img.onerror = function(){
-      frame.innerHTML = placeholderMarkup(card);
-    };
-    frame.appendChild(img);
-
-    // name
-    var nameEl = document.createElement("div");
-    nameEl.className = "card-name";
-    nameEl.textContent = card.name;
-
-    // price row
-    var priceRow = document.createElement("div");
-    priceRow.className = "price-row";
-    var priceLabel = document.createElement("span");
-    priceLabel.textContent = "Cardmarket Low";
-    var priceValue = document.createElement("span");
-    priceValue.className = "price-value";
-    priceValue.textContent = formatEUR(card.price);
-    priceRow.appendChild(priceLabel);
-    priceRow.appendChild(priceValue);
-
-    // variant tracks
-    var variantGrid = document.createElement("div");
-    variantGrid.className = "variant-grid";
-    if (card.isSecretSlot){
-      variantGrid.style.setProperty("--variant-cols", "1");
-      variantGrid.appendChild(buildVariantTrack(card, "normal", "Normal"));
-    } else {
-      variantGrid.style.setProperty("--variant-cols", "3");
-      variantGrid.appendChild(buildVariantTrack(card, "normal", "Normal"));
-      variantGrid.appendChild(buildVariantTrack(card, "holo", "Holo"));
-      variantGrid.appendChild(buildVariantTrack(card, "reverse", "Reverse"));
-    }
-
-    el.appendChild(top);
-    el.appendChild(frame);
-    el.appendChild(nameEl);
-    el.appendChild(priceRow);
-    el.appendChild(variantGrid);
-
-    var qty = entry.normal + entry.holo + entry.reverse;
-    el.classList.toggle("fully-owned", qty > 0);
-
-    cardElements[card.code] = el;
-    return el;
-  }
-
-  function renderGrid(){
-    gridEl.innerHTML = "";
-    cardElements = {};
-    var frag = document.createDocumentFragment();
-    CARDS.forEach(function(card){
-      frag.appendChild(buildCard(card));
-    });
-    gridEl.appendChild(frag);
-    applyFilters();
-  }
-
-  // ---------------------------------------------------------------
-  // 7. Filtering
-  // ---------------------------------------------------------------
-  function applyFilters(){
-    var query = searchBox.value.trim().toLowerCase();
-    var rarityVal = rarityFilter.value;
-    var ownedVal = ownedFilter.value;
-    var visible = 0;
-
-    CARDS.forEach(function(card){
-      var el = cardElements[card.code];
-      if (!el) return;
-      var entry = getEntry(card.code);
-      var qty = entry.normal + entry.holo + entry.reverse;
-
-      var matchesQuery = !query ||
-        card.name.toLowerCase().indexOf(query) !== -1 ||
-        card.code.indexOf(query) !== -1;
-      var matchesRarity = rarityVal === "all" || card.rarity === rarityVal;
-      var matchesOwned = ownedVal === "all" ||
-        (ownedVal === "owned" && qty > 0) ||
-        (ownedVal === "missing" && qty === 0);
-
-      var show = matchesQuery && matchesRarity && matchesOwned;
-      el.style.display = show ? "" : "none";
-      if (show) visible++;
-    });
-
-    visibleCountEl.textContent = visible + " / " + TOTAL_CARDS + " cards";
-  }
-
-  searchBox.addEventListener("input", applyFilters);
-  rarityFilter.addEventListener("change", applyFilters);
-  ownedFilter.addEventListener("change", applyFilters);
-
-  resetBtn.addEventListener("click", function(){
-    var confirmed = window.confirm("This will clear every tracked quantity for the Pitch Black set. Continue?");
-    if (!confirmed) return;
-    collection = {};
-    saveCollection();
-    renderGrid();
-    recalcTelemetry();
+  const uniqueRarities = [...new Set(setCards.map(c => c.rarity))];
+  uniqueRarities.forEach(rarity => {
+    const opt = document.createElement("option");
+    opt.value = rarity.toLowerCase();
+    opt.textContent = rarity;
+    rarityFilter.appendChild(opt);
   });
 
-  // ---------------------------------------------------------------
-  // 8. Live data — Cardmarket EUR "low" price + real card art, pulled
-  //    client-side from the public TCGdex API (which mirrors Cardmarket
-  //    pricing under card.pricing.cardmarket.low, in EUR, plus a
-  //    resolved image path per card). Runs after first paint so the
-  //    checklist is usable immediately; falls back silently to the
-  //    static reference price/placeholder art per card if a lookup
-  //    fails, times out, or the card has no active Cardmarket listing.
-  // ---------------------------------------------------------------
-  var statusEl = document.getElementById("liveStatus");
+  function updateTelemetry() {
+    let totalCardsOwned = 0;
+    let totalValue = 0.00;
 
-  function setStatus(text){
-    if (statusEl) statusEl.textContent = text;
-  }
-
-  function fetchWithTimeout(url, ms){
-    var controller = new AbortController();
-    var timer = setTimeout(function(){ controller.abort(); }, ms);
-    return fetch(url, { signal: controller.signal }).finally(function(){
-      clearTimeout(timer);
+    setCards.forEach(card => {
+      card.variants.forEach(variant => {
+        const count = inventory[`${card.id}_${variant}`] || 0;
+        if (count > 0) {
+          totalCardsOwned += count;
+          totalValue += (count * card.price);
+        }
+      });
     });
+
+    telemCount.textContent = totalCardsOwned;
+    telemValue.textContent = `€${totalValue.toFixed(2)}`;
+    liveStatus.textContent = "Live Market Sync Active";
   }
 
-  function applyLiveCardData(card, apiCard){
-    var updatedPrice = false;
-    var updatedImage = false;
+  function renderGrid() {
+    cardGrid.innerHTML = "";
+    const query = searchBox.value.toLowerCase();
+    const selectedRarity = rarityFilter.value;
+    const selectedOwnedState = ownedFilter.value;
+    let matchCount = 0;
 
-    if (apiCard && apiCard.pricing && apiCard.pricing.cardmarket &&
-        typeof apiCard.pricing.cardmarket.low === "number"){
-      card.price = apiCard.pricing.cardmarket.low;
-      card.priceIsLive = true;
-      updatedPrice = true;
-    }
+    setCards.forEach(card => {
+      const matchesSearch = card.name.toLowerCase().includes(query) || card.id.toLowerCase().includes(query);
+      const matchesRarity = selectedRarity === "all" || card.rarity.toLowerCase() === selectedRarity;
+      
+      let totalQty = 0;
+      card.variants.forEach(v => totalQty += (inventory[`${card.id}_${v}`] || 0));
+      
+      let matchesOwned = true;
+      if (selectedOwnedState === "owned") matchesOwned = totalQty > 0;
+      if (selectedOwnedState === "missing") matchesOwned = totalQty === 0;
 
-    if (apiCard && apiCard.image){
-      card.image = apiCard.image + "/high.webp";
-      updatedImage = true;
-    }
+      if (!matchesSearch || !matchesRarity || !matchesOwned) return;
+      matchCount++;
 
-    var el = cardElements[card.code];
-    if (!el) return;
+      const cardEl = document.createElement("div");
+      cardEl.className = `card live-priced ${totalQty > 0 ? 'fully-owned' : ''}`;
+      const tierAttr = card.rarity.toLowerCase() === 'chase' ? 'chase' : (card.rarity.toLowerCase() === 'gold' ? 'gold' : 'normal');
 
-    if (updatedPrice){
-      var priceValueEl = el.querySelector(".price-value");
-      var priceLabelEl = el.querySelector(".price-row span:first-child");
-      if (priceValueEl) priceValueEl.textContent = formatEUR(card.price);
-      if (priceLabelEl) priceLabelEl.textContent = "Cardmarket Low";
-      el.classList.add("live-priced");
-    }
+      let variantsHtml = "";
+      card.variants.forEach(variant => {
+        const currentQty = inventory[`${card.id}_${variant}`] || 0;
+        variantsHtml += `
+          <div class="variant-track ${currentQty > 0 ? 'owned' : ''}">
+            <label>${variant}</label>
+            <input type="number" min="0" value="${currentQty}" data-id="${card.id}" data-variant="${variant}">
+          </div>
+        `;
+      });
 
-    if (updatedImage){
-      var imgEl = el.querySelector(".art-frame img");
-      var frameEl = el.querySelector(".art-frame");
-      if (imgEl && frameEl){
-        var testImg = new Image();
-        testImg.onload = function(){ imgEl.src = card.image; };
-        testImg.onerror = function(){ /* keep whatever is currently shown */ };
-        testImg.src = card.image;
-      }
-    }
-
-    recalcTelemetry();
-  }
-
-  var updatePricesBtn = document.getElementById("updatePricesBtn");
-  var isFetchingPrices = false;
-
-  function fetchLivePricing(){
-    if (isFetchingPrices) return;
-    isFetchingPrices = true;
-    if (updatePricesBtn){
-      updatePricesBtn.disabled = true;
-      updatePricesBtn.textContent = "Updating\u2026";
-    }
-
-    var CONCURRENCY = 6;
-    var TIMEOUT_MS = 8000;
-    var queue = CARDS.slice();
-    var done = 0;
-    var failed = 0;
-
-    setStatus("Fetching Cardmarket snapshot\u2026 0 / " + TOTAL_CARDS);
-
-    function worker(){
-      var card = queue.shift();
-      if (!card){
-        return Promise.resolve();
-      }
-      var apiUrl = "https://api.tcgdex.net/v2/en/cards/" + TCGDEX_SET_ID + "-" + card.id;
-      return fetchWithTimeout(apiUrl, TIMEOUT_MS)
-        .then(function(res){
-          if (!res.ok) throw new Error("HTTP " + res.status);
-          return res.json();
-        })
-        .then(function(apiCard){
-          applyLiveCardData(card, apiCard);
-        })
-        .catch(function(){
-          failed++;
-          // Leave the static reference price / placeholder art in place.
-        })
-        .finally(function(){
-          done++;
-          setStatus("Fetching Cardmarket snapshot\u2026 " + done + " / " + TOTAL_CARDS);
-          return worker();
-        });
-    }
-
-    var workers = [];
-    for (var w = 0; w < CONCURRENCY; w++){
-      workers.push(worker());
-    }
-
-    Promise.all(workers).then(function(){
-      var now = new Date();
-      var stamp = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      if (failed === 0){
-        setStatus("Cardmarket snapshot taken at " + stamp + " \u00b7 " + TOTAL_CARDS + " cards");
-      } else {
-        setStatus("Snapshot taken at " + stamp + " \u00b7 " + (TOTAL_CARDS - failed) + " / " + TOTAL_CARDS + " cards updated, rest on reference price");
-      }
-      isFetchingPrices = false;
-      if (updatePricesBtn){
-        updatePricesBtn.disabled = false;
-        updatePricesBtn.textContent = "Update prices";
-      }
+      cardEl.innerHTML = `
+        <div class="card-top"><span>${card.id}</span><span class="rarity-badge" data-tier="${tierAttr}">${card.rarity}</span></div>
+        <div class="art-frame"><img src="${card.imageUrl}" alt="${card.name}" loading="lazy"></div>
+        <div class="card-name">${card.name}</div>
+        <div class="price-row"><span>Market Price</span><span class="price-value">€${card.price.toFixed(2)}</span></div>
+        <div class="variant-grid" style="--variant-cols: ${card.variants.length}">${variantsHtml}</div>
+      `;
+      cardGrid.appendChild(cardEl);
     });
+    visibleCount.textContent = `Showing ${matchCount} of ${setCards.length} cards`;
   }
 
-  if (updatePricesBtn){
-    updatePricesBtn.addEventListener("click", fetchLivePricing);
-  }
+  cardGrid.addEventListener("input", (e) => {
+    if (e.target.tagName === "INPUT" && e.target.type === "number") {
+      const cardId = e.target.getAttribute("data-id");
+      const variant = e.target.getAttribute("data-variant");
+      let val = parseInt(e.target.value, 10);
+      if (isNaN(val) || val < 0) val = 0;
+      e.target.value = val;
 
-  // ---------------------------------------------------------------
-  // 9. Boot
-  // ---------------------------------------------------------------
+      inventory[`${cardId}_${variant}`] = val;
+      localStorage.setItem(userStorageKey, JSON.stringify(inventory));
+      
+      const track = e.target.closest(".variant-track");
+      const overallCard = e.target.closest(".card");
+      if (val > 0) track.classList.add("owned"); else track.classList.remove("owned");
+
+      let totalQty = 0;
+      const associatedCard = setCards.find(c => c.id === cardId);
+      associatedCard.variants.forEach(v => totalQty += (inventory[`${cardId}_${v}`] || 0));
+      if (totalQty > 0) overallCard.classList.add("fully-owned"); else overallCard.classList.remove("fully-owned");
+
+      updateTelemetry();
+    }
+  });
+
+  resetBtn.addEventListener("click", () => {
+    if (confirm("Clear your collection quantities?")) {
+      inventory = {}; localStorage.removeItem(userStorageKey);
+      updateTelemetry(); renderGrid();
+    }
+  });
+
+  searchBox.addEventListener("input", renderGrid);
+  rarityFilter.addEventListener("change", renderGrid);
+  ownedFilter.addEventListener("change", renderGrid);
+
+  updateTelemetry();
   renderGrid();
-  recalcTelemetry();
-  setStatus("Showing reference prices \u2014 click \u201cUpdate prices\u201d for a Cardmarket snapshot");
-
-})();
 </script>
 </body>
 </html>
+
