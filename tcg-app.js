@@ -933,7 +933,7 @@ function composeCardMarkup(card, showSetBadge) {
       ? `<div class="set-badge">${escapeMarkupText(setDefinition.label)}</div>`
       : ''}
 
-    <div class="art">
+    <div class="art" title="Add a normal copy of ${safeCardName}">
       ${card.imageUrl
         ? `<img class="art-img" src="${escapeMarkupText(card.imageUrl)}" alt="${safeCardName}" loading="lazy" decoding="async">`
         : `<span class="art-fallback">🖤</span>`}
@@ -1487,16 +1487,27 @@ function attachEventHandlers() {
   // so no card data has to be interpolated into inline handler attributes.
   DOMGridContainer.addEventListener('click', clickEvent => {
     const stepButton = clickEvent.target.closest('.step-btn');
-    if (!stepButton) return;
+    if (stepButton) {
+      const steppedCard = stepButton.closest('[data-card-id]');
+      if (!steppedCard) return;
+      adjustVariantCount(
+        steppedCard.dataset.cardId,
+        stepButton.dataset.variant,
+        Number(stepButton.dataset.step)
+      );
+      return;
+    }
 
-    const cardNodeElement = stepButton.closest('[data-card-id]');
+    // Clicking the artwork is a shortcut for the normal-finish "+" button, which
+    // is the overwhelmingly common action. Every card always offers a normal row,
+    // so there is no card this cannot apply to.
+    const artElement = clickEvent.target.closest('.art');
+    if (!artElement) return;
+
+    const cardNodeElement = artElement.closest('[data-card-id]');
     if (!cardNodeElement) return;
 
-    adjustVariantCount(
-      cardNodeElement.dataset.cardId,
-      stepButton.dataset.variant,
-      Number(stepButton.dataset.step)
-    );
+    adjustVariantCount(cardNodeElement.dataset.cardId, 'normal', 1);
   });
 
   // 'error' does not bubble, so this listens in the capture phase.

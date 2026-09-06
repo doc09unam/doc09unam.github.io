@@ -603,3 +603,10 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .card .art { transition: none; }
 }
+
+/* The artwork is a click target for adding a normal copy. The steppers remain
+   the keyboard route, so the art is deliberately not in the tab order — it
+   duplicates the "+" button rather than offering anything new, and adding it
+   would double the tab stops on a grid of hundreds of cards. */
+.card .art { cursor: pointer; user-select: none; }
+.card .art:active { transform: scale(0.97); }
