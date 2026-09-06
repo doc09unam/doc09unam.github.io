@@ -31,7 +31,7 @@ import urllib.request
 from datetime import datetime, timezone
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PRICES_FILE = "card-prices.json"
+INDEX_FILE = "card-prices.json"
 REGISTRY_FILE = "set-registry.json"
 OUTPUT_FILE = "PRICE-MAPPING-NOTES.md"
 # A rendered sibling, so the notes are readable when served from GitHub Pages
@@ -44,9 +44,11 @@ REQUEST_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                   "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
 }
-FETCH_ATTEMPTS = 10
+FETCH_ATTEMPTS = 8
+GUESS_LISTING_THRESHOLD_EUR = 1.00
+MAX_GUESS_ROWS_PER_SET = 25
 API_CACHE_DIR = ".api-cache"
-API_CACHE_LIFETIME_S = 60 * 60 * 24
+API_CACHE_LIFETIME_S = 60 * 60 * 24 * 7
 
 ENERGY_TYPE_ABBREVIATIONS = {
     "G": "Grass", "R": "Fire", "W": "Water", "L": "Lightning", "P": "Psychic",
@@ -75,7 +77,12 @@ def normalize_card_name(raw_name):
     else:
         name = name.replace("[M]", "♂").replace("[F]", "♀")
 
-    name = re.sub(r"\s+", " ", name).strip().lower()
+    name = name.strip().lower()
+    name = re.sub(r"\s+lv\.\d+$", "", name)
+    name = re.sub(r"\s+δ\s+delta species$", " δ", name)
+    name = name.replace("-", " ")
+    name = re.sub(r"\s+", " ", name).strip()
+    name = re.sub(r"^m\s+(?=\w)", "m", name)
     return NAME_ALIASES.get(name, name)
 
 
@@ -138,7 +145,8 @@ def group_by_name(items, name_of, sort_key):
 def audit_set(set_key, set_block):
     """Returns (summary, best_guesses, unpriced)."""
     api_cards = fetch_set_cards(set_block["apiSetId"])
-    price_rows = set_block["cards"]
+    with open(os.path.join(HERE, set_block["file"]), encoding="utf-8") as handle:
+        price_rows = json.load(handle)["cards"]
 
     cards_by_name = group_by_name(api_cards, lambda c: c["name"], collector_number)
     products_by_name = group_by_name(price_rows, lambda r: r["name"], lambda r: r["idProduct"])
@@ -191,7 +199,8 @@ def audit_set(set_key, set_block):
     summary = {
         "label": set_block["label"],
         "apiSetId": set_block["apiSetId"],
-        "expansionId": set_block["expansionId"],
+        "expansionId": set_block.get("expansionId"),
+        "release": (set_block.get("releaseDate") or "")[:4],
         "cards": len(api_cards),
         "products": len(price_rows),
         "exact": exact,
@@ -201,7 +210,7 @@ def audit_set(set_key, set_block):
     return summary, best_guesses, unpriced
 
 
-def render_markdown(snapshot_date, results, registry_blocks):
+def render_markdown(snapshot_date, results, registry_blocks, unpriced_sets):
     lines = []
     add = lines.append
 
@@ -212,114 +221,107 @@ def render_markdown(snapshot_date, results, registry_blocks):
     add("")
     add("Regenerate with `python3 build-price-index.py && python3 audit-price-mapping.py`.")
     add("")
-    add("Prices are joined to cards by name. Where a set contains several cards sharing")
-    add("one name, they are paired in order: the *n*th Cardmarket product by `idProduct`")
-    add("is matched to the *n*th card by collector number. That is exact when both sides")
-    add("hold the same number of entries.")
-    add("")
-    add("**Every card listed under \"Best-guess prices\" below is not exact.** Cardmarket")
-    add("carries an extra product for that name — an error or variant printing the card")
-    add("API does not model — and nothing in the data identifies which product is the")
-    add("standard print, so the lowest `idProduct` was taken. Treat these prices as")
-    add("indicative and check them on Cardmarket before relying on them.")
-    add("")
+
+    priced_cards = sum(s["cards"] for s, _, _ in results)
+    unpriced_cards = sum(u.get("setTotal", 0) for u in unpriced_sets)
+    exact = sum(s["exact"] for s, _, _ in results)
+    guessed = sum(s["guessed"] for s, _, _ in results)
+    unmatched = sum(s["unpriced"] for s, _, _ in results)
 
     add("## Summary")
     add("")
-    add("| Set | Cards | Products | Exact | Best guess | Unpriced |")
-    add("|---|---:|---:|---:|---:|---:|")
-    totals = [0, 0, 0, 0, 0]
-    for summary, _, _ in results:
-        add(f"| {summary['label']} | {summary['cards']} | {summary['products']} | "
-            f"{summary['exact']} | {summary['guessed']} | {summary['unpriced']} |")
-        totals[0] += summary["cards"]
-        totals[1] += summary["products"]
-        totals[2] += summary["exact"]
-        totals[3] += summary["guessed"]
-        totals[4] += summary["unpriced"]
-    add(f"| **Total** | **{totals[0]}** | **{totals[1]}** | **{totals[2]}** | "
-        f"**{totals[3]}** | **{totals[4]}** |")
+    add("| | Sets | Cards |")
+    add("|---|---:|---:|")
+    add(f"| Priced | {len(results)} | {priced_cards:,} |")
+    add(f"| Deliberately unpriced | {len(unpriced_sets)} | {unpriced_cards:,} |")
+    add(f"| **Total tracked** | **{len(results)+len(unpriced_sets)}** | **{priced_cards+unpriced_cards:,}** |")
+    add("")
+    add(f"Within the priced sets: **{exact:,} exact**, **{guessed:,} best guess**, "
+        f"**{unmatched:,} unmatched**.")
     add("")
 
-    guessed_any = any(guesses for _, guesses, _ in results)
-    unpriced_any = any(unpriced for _, _, unpriced in results)
+    add("## Sets deliberately left unpriced")
+    add("")
+    if not unpriced_sets:
+        add("None - every tracked set has a confidently identified Cardmarket expansion.")
+        add("")
+    else:
+        add("These sets appear in the app so their cards can still be collected and counted, but they")
+        add("carry **no prices**. Their Cardmarket expansion could not be identified with enough")
+        add("confidence, and a wrong price is worse than none - it would flow into the portfolio")
+        add("total invisibly. Cards in these sets contribute 0 to portfolio value.")
+        add("")
+        add("| Set | Released | Cards | Why it is unpriced |")
+        add("|---|---|---:|---|")
+        for u in sorted(unpriced_sets, key=lambda x: x.get("releaseDate", "")):
+            add(f"| {u['label']} | {(u.get('releaseDate') or '')[:4]} | {u.get('setTotal',0)} | "
+                f"{u.get('unpricedReason','-')} |")
+        add("")
+
+    add("## Priced sets")
+    add("")
+    add("| Set | Released | Expansion | Cards | Exact | Best guess | Unmatched |")
+    add("|---|---|---:|---:|---:|---:|---:|")
+    for summary, _, _ in sorted(results, key=lambda r: r[0].get("release","")):
+        add(f"| {summary['label']} | {summary.get('release','')} | `{summary['expansionId']}` | "
+            f"{summary['cards']} | {summary['exact']} | {summary['guessed']} | {summary['unpriced']} |")
+    add("")
 
     add("## Best-guess prices")
     add("")
-    if not guessed_any:
-        add("None — every card paired exactly.")
+    add("Cardmarket carries more products than the card API has cards for these names - error or")
+    add("variant printings the API does not model - so the lowest `idProduct` was taken. Only guesses")
+    add(f"where a rejected alternative differs by more than EUR {GUESS_LISTING_THRESHOLD_EUR:.2f} are")
+    add("listed individually; the remainder are bulk cards a few cents apart.")
+    add("")
+    listed = False
+    for summary, guesses, _ in sorted(results, key=lambda r: r[0].get("release","")):
+        notable = [g for g in guesses if guess_gap(g) >= GUESS_LISTING_THRESHOLD_EUR]
+        if not notable:
+            continue
+        listed = True
+        notable.sort(key=guess_gap, reverse=True)
+        shown = notable[:MAX_GUESS_ROWS_PER_SET]
+        add(f"### {summary['label']}")
+        add("")
+        add(f"{len(guesses)} best-guess cards in this set, {len(notable)} of them material.")
+        add("")
+        add("| # | Card | Rarity | Price used | Product | Rejected | Gap |")
+        add("|---|---|---|---:|---|---|---:|")
+        for g in shown:
+            alts = ", ".join(f"`{x['idProduct']}` (EUR {x.get('avg')})" for x in g["rejected"]) or "-"
+            add(f"| {g['number']} | {g['name']} | {g['rarity']} | EUR {g['chosen'].get('avg')} | "
+                f"`{g['chosen']['idProduct']}` | {alts} | EUR {guess_gap(g):.2f} |")
+        if len(notable) > len(shown):
+            add(f"| ... | *{len(notable)-len(shown)} more in this set* | | | | | |")
+        add("")
+    if not listed:
+        add("None above the threshold.")
+        add("")
+
+    add("## Unmatched cards in priced sets")
+    add("")
+    if not any(u for _, _, u in results):
+        add("None - every card in every priced set received a price.")
         add("")
     else:
-        for summary, guesses, _ in results:
-            if not guesses:
-                continue
-            add(f"### {summary['label']}")
-            add("")
-            add("| # | Card | Rarity | Price used | Cardmarket product | Also available | Why |")
-            add("|---|---|---|---:|---|---|---|")
-            for g in guesses:
-                chosen = g["chosen"]
-                alternatives = ", ".join(
-                    f"`{r['idProduct']}` (€{r['avg']})" for r in g["rejected"]
-                ) or "—"
-                add(f"| {g['number']} | {g['name']} | {g['rarity']} | "
-                    f"€{chosen['avg']} | `{chosen['idProduct']}` | {alternatives} | "
-                    f"{g['group']} products share this name |")
-            add("")
+        add("| Set | # | Card | Rarity | Reason |")
+        add("|---|---|---|---|---|")
+        for summary, _, unmatched_cards in sorted(results, key=lambda r: r[0].get("release","")):
+            for u in unmatched_cards:
+                add(f"| {summary['label']} | {u['number']} | {u['name']} | {u['rarity']} | {u['reason']} |")
+        add("")
 
     add("## Printing caveats")
     add("")
-    caveat_sets = [(s, block) for s, _, _, block in
-                   ((summary, g, u, block) for (summary, g, u), block in
-                    zip(results, registry_blocks))
-                   if block.get("pricingCaveat")]
-
-    if not caveat_sets:
-        add("None — every tracked set maps to exactly one Cardmarket printing.")
-        add("")
+    caveats = [(s, b) for (s, _, _), b in zip(results, registry_blocks)
+               if b.get("pricingNote") or b.get("pricingCaveat")]
+    if not caveats:
+        add("None recorded.")
     else:
-        add("Cardmarket prices a *product*, and for the vintage sets a product does not always")
-        add("correspond to one printing. Where that is true the set is listed below, with its")
-        add("most valuable cards so the numbers can be spot-checked on cardmarket.com before")
-        add("being relied on. Nothing in the dump names its expansions, so the exact printing")
-        add("behind these figures cannot be determined from the data alone.")
-        add("")
-        for summary, block in caveat_sets:
-            add(f"### {summary['label']}")
-            add("")
-            add(f"Cardmarket expansion `{summary['expansionId']}` · {summary['products']} products")
-            add("")
-            add(f"{block['pricingCaveat']}")
-            add("")
-            top_cards = sorted(
-                (c for c in block["cards"] if c.get("avg") is not None),
-                key=lambda c: c["avg"], reverse=True,
-            )[:5]
-            if top_cards:
-                add("Spot-check these against Cardmarket:")
-                add("")
-                add("| Card | Avg | Low | Trend | Product |")
-                add("|---|---:|---:|---:|---|")
-                for card in top_cards:
-                    add(f"| {card['name']} | €{card['avg']} | €{card['low']} | "
-                        f"€{card['trend']} | `{card['idProduct']}` |")
-                add("")
-
-    add("## Unpriced cards")
+        for summary, block in caveats:
+            add(f"- **{summary['label']}** - {block.get('pricingNote') or block.get('pricingCaveat')}")
     add("")
-    if not unpriced_any:
-        add("None — every card received a price.")
-    else:
-        for summary, _, unpriced in results:
-            if not unpriced:
-                continue
-            add(f"### {summary['label']}")
-            add("")
-            add("| # | Card | Rarity | Reason |")
-            add("|---|---|---|---|")
-            for u in unpriced:
-                add(f"| {u['number']} | {u['name']} | {u['rarity']} | {u['reason']} |")
-            add("")
 
     return "\n".join(lines) + "\n"
 
@@ -440,43 +442,41 @@ def markdown_to_html(markdown_text):
 """
 
 
+def guess_gap(guess):
+    """Largest price difference between the chosen product and those rejected."""
+    chosen = guess["chosen"].get("avg") or 0
+    gaps = [abs((r.get("avg") or 0) - chosen) for r in guess["rejected"]]
+    return max(gaps) if gaps else 0.0
+
+
 def main():
-    prices_path = os.path.join(HERE, PRICES_FILE)
-    if not os.path.exists(prices_path):
-        sys.exit(f"error: {PRICES_FILE} not found — run build-price-index.py first.")
+    index_path = os.path.join(HERE, INDEX_FILE)
+    if not os.path.exists(index_path):
+        sys.exit(f"error: {INDEX_FILE} not found - run build-price-index.py first.")
+    with open(index_path, encoding="utf-8") as handle:
+        index = json.load(handle)
 
-    with open(prices_path, encoding="utf-8") as handle:
-        prices = json.load(handle)
-
-    registry = load_registry()
-    registry_by_key = {entry["key"]: entry for entry in registry}
-    results = []
-    registry_blocks = []
-    for entry in registry:
-        set_key = entry["key"]
-        set_block = prices["sets"].get(set_key)
-        if not set_block:
-            print(f"   skipping {set_key}: not in {PRICES_FILE}")
+    results, registry_blocks, unpriced_sets = [], [], []
+    for set_key, entry in index["sets"].items():
+        if not entry.get("priced"):
+            unpriced_sets.append(dict(entry, key=set_key))
             continue
-        print(f"   auditing {set_block['label']}…")
-        results.append(audit_set(set_key, set_block))
-        # Price rows plus the registry's pricingCaveat, for the caveat section.
-        registry_blocks.append({**set_block, **registry_by_key.get(set_key, {})})
+        print(f"   auditing {entry['label']}...")
+        results.append(audit_set(set_key, entry))
+        registry_blocks.append(dict(entry, key=set_key))
 
-    markdown = render_markdown(prices.get("snapshotDate"), results, registry_blocks)
-    out_path = os.path.join(HERE, OUTPUT_FILE)
-    with open(out_path, "w", encoding="utf-8") as handle:
+    markdown = render_markdown(index.get("snapshotDate"), results, registry_blocks, unpriced_sets)
+    with open(os.path.join(HERE, OUTPUT_FILE), "w", encoding="utf-8") as handle:
         handle.write(markdown)
-
-    html_path = os.path.join(HERE, OUTPUT_HTML_FILE)
-    with open(html_path, "w", encoding="utf-8") as handle:
+    with open(os.path.join(HERE, OUTPUT_HTML_FILE), "w", encoding="utf-8") as handle:
         handle.write(markdown_to_html(markdown))
 
-    guessed = sum(s["guessed"] for s, _, _ in results)
-    unpriced = sum(s["unpriced"] for s, _, _ in results)
-    exact = sum(s["exact"] for s, _, _ in results)
-    print(f"wrote {OUTPUT_FILE} and {OUTPUT_HTML_FILE}: "
-          f"{exact} exact, {guessed} best-guess, {unpriced} unpriced")
+    exact = sum(s0["exact"] for s0, _, _ in results)
+    guess = sum(s0["guessed"] for s0, _, _ in results)
+    none = sum(s0["unpriced"] for s0, _, _ in results)
+    print(f"\nwrote {OUTPUT_FILE} and {OUTPUT_HTML_FILE}")
+    print(f"   {len(results)} priced sets: {exact:,} exact, {guess:,} best-guess, {none:,} unmatched")
+    print(f"   {len(unpriced_sets)} sets documented as deliberately unpriced")
 
 
 def load_registry():

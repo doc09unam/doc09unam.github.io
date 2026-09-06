@@ -610,3 +610,95 @@ body {
    would double the tab stops on a grid of hundreds of cards. */
 .card .art { cursor: pointer; user-select: none; }
 .card .art:active { transform: scale(0.97); }
+
+/* --- Set picker at 141 sets ---------------------------------------------- */
+
+.set-picker-panel { width: 340px; }
+.set-picker-filter {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 7px 10px;
+  margin-bottom: 8px;
+  outline: none;
+}
+.set-picker-filter:focus { border-color: var(--indigo-strong); }
+.set-picker-count { margin-left: auto; color: var(--text-dim); font-size: 10px; }
+.set-picker-options { max-height: 420px; overflow-y: auto; }
+.set-picker-empty { color: var(--text-dim); font-size: 12px; padding: 10px 8px; margin: 0; }
+
+.set-group + .set-group { margin-top: 8px; }
+.set-group-head {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 6px 8px 3px;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+}
+
+/* Sets whose Cardmarket expansion could not be identified are still listed so
+   their cards can be collected, but are marked as carrying no prices. */
+.set-option--unpriced .set-option-label { color: var(--text-muted); }
+.set-option-flag {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--amber);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 999px;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+.set-option { grid-template-columns: auto 1fr auto auto; }
+
+/* --- Set headings --------------------------------------------------------
+   Shown only when more than one set is on screen. Sticks to the top of the
+   viewport while that set's cards scroll past, so the set being looked at is
+   always named. Successive headings push each other up, section-list style. */
+
+.set-heading {
+  grid-column: 1 / -1;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line-bright);
+  padding: 12px 2px 8px;
+  margin-top: 10px;
+}
+.set-heading:first-child { margin-top: 0; }
+
+.set-heading-name {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--violet);
+}
+.set-heading-stats {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.set-heading-flag {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--amber);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 999px;
+  padding: 1px 6px;
+}

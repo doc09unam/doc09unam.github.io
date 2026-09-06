@@ -21,6 +21,8 @@ const TCG_CONFIG = {
   API_ENDPOINT: 'https://api.pokemontcg.io/v2/cards',
   PRICE_INDEX_URL: 'card-prices.json',
   SET_REGISTRY_URL: 'set-registry.json',
+  // Per-set price files are fetched on demand; the index above only lists them.
+  PRICE_OVERRIDE_PREFIX: 'app_tcgtracker_prices_',
   // Card ids are globally unique across sets ("me5-1", "base1-4"), so one
   // inventory covers every set. The key is unchanged from the single-set build
   // so existing collections survive the upgrade untouched.
@@ -95,7 +97,9 @@ let currentSearchFilterString = '';
 let priceByCardId = new Map();
 let priceSnapshotDate = null;
 let priceSnapshotOrigin = '';
-let loadedPriceSets = null;                  // raw sets block from card-prices.json
+let priceRowsBySetKey = new Map();           // setKey -> price rows, fetched on demand
+let priceStateBySetKey = new Map();          // setKey -> 'loading'|'ready'|'error'
+let priceIndexLoaded = false;
 
 let inventoryByCardId = loadPersistedInventory();
 let currentPriceBasisKey = loadPersistedPriceBasis();
@@ -140,7 +144,20 @@ function normalizeCardName(rawCardName) {
     workingName = workingName.replace(/\[M\]/g, '♂').replace(/\[F\]/g, '♀');
   }
 
-  const normalizedName = workingName.replace(/\s+/g, ' ').trim().toLowerCase();
+  let normalizedName = workingName.trim().toLowerCase();
+
+  // Each of these is one era's naming difference between the two sources:
+  //   " Lv.68"             Cardmarket appends the card level (DP through HGSS).
+  //                        "lv.x" is a different card and must survive.
+  //   " δ Delta Species"   Cardmarket spells out what the API writes as " δ".
+  //   hyphens              "Decidueye-GX" vs "Decidueye GX" (XY, Sun & Moon).
+  //   leading "M "         "M Venusaur-EX" vs "MVenusaur EX".
+  normalizedName = normalizedName.replace(/\s+lv\.\d+$/, '');
+  normalizedName = normalizedName.replace(/\s+δ\s+delta species$/, ' δ');
+  normalizedName = normalizedName.replace(/-/g, ' ');
+  normalizedName = normalizedName.replace(/\s+/g, ' ').trim();
+  normalizedName = normalizedName.replace(/^m\s+(?=\w)/, 'm');
+
   return NAME_ALIASES[normalizedName] || normalizedName;
 }
 
@@ -306,30 +323,73 @@ function setSelectionSummary() {
   return `${selectedSetKeys.length} sets`;
 }
 
+let setPickerFilterString = '';
+
 function renderSetPicker() {
   const DOMOptionList = document.getElementById('setPickerOptions');
   if (!DOMOptionList) return;
 
-  DOMOptionList.innerHTML = setRegistry.map(setDefinition => {
-    const isChecked = isSetSelected(setDefinition.key);
-    const cards = catalogueBySetKey.get(setDefinition.key);
-    const state = catalogueStateBySetKey.get(setDefinition.key);
-    let note = `${setDefinition.setTotal} cards`;
-    if (isChecked && state === 'loading') note = 'loading…';
-    else if (isChecked && state === 'error') note = 'unavailable';
-    else if (cards) note = `${cards.length} cards`;
+  const filter = setPickerFilterString.toLowerCase().trim();
+  const matching = setRegistry.filter(setDefinition =>
+    !filter
+    || setDefinition.label.toLowerCase().includes(filter)
+    || setDefinition.series.toLowerCase().includes(filter)
+    || setDefinition.key.toLowerCase().includes(filter));
 
-    return `
-      <label class="set-option">
-        <input type="checkbox" data-set-key="${escapeMarkupText(setDefinition.key)}" ${isChecked ? 'checked' : ''}>
-        <span class="set-option-label">${escapeMarkupText(setDefinition.label)}</span>
-        <span class="set-option-note">${escapeMarkupText(note)}</span>
-      </label>
-    `;
-  }).join('');
+  // Grouped by series, newest series first — 141 flat checkboxes is unusable.
+  const bySeries = new Map();
+  matching.forEach(setDefinition => {
+    if (!bySeries.has(setDefinition.series)) bySeries.set(setDefinition.series, []);
+    bySeries.get(setDefinition.series).push(setDefinition);
+  });
+
+  const groups = [...bySeries.entries()].sort((left, right) => {
+    const leftDate = left[1][0].releaseDate || '';
+    const rightDate = right[1][0].releaseDate || '';
+    return String(rightDate).localeCompare(String(leftDate));
+  });
+
+  if (groups.length === 0) {
+    DOMOptionList.innerHTML = '<p class="set-picker-empty">No sets match that search.</p>';
+  } else {
+    DOMOptionList.innerHTML = groups.map(([series, sets]) => `
+      <div class="set-group">
+        <div class="set-group-head">${escapeMarkupText(series)}</div>
+        ${sets.map(setDefinition => {
+          const isChecked = isSetSelected(setDefinition.key);
+          const cards = catalogueBySetKey.get(setDefinition.key);
+          const state = catalogueStateBySetKey.get(setDefinition.key);
+          let note = `${setDefinition.setTotal}`;
+          if (isChecked && state === 'loading') note = '…';
+          else if (isChecked && state === 'error') note = '!';
+          else if (cards) note = `${cards.length}`;
+          return `
+            <label class="set-option${setDefinition.priced ? '' : ' set-option--unpriced'}"
+                   title="${setDefinition.priced
+                     ? escapeMarkupText(setDefinition.label)
+                     : escapeMarkupText(setDefinition.unpricedReason)}">
+              <input type="checkbox" data-set-key="${escapeMarkupText(setDefinition.key)}" ${isChecked ? 'checked' : ''}>
+              <span class="set-option-label">${escapeMarkupText(setDefinition.label)}</span>
+              ${setDefinition.priced ? '' : '<span class="set-option-flag">no prices</span>'}
+              <span class="set-option-note">${escapeMarkupText(note)}</span>
+            </label>`;
+        }).join('')}
+      </div>`).join('');
+  }
 
   const DOMSummary = document.getElementById('setPickerSummary');
   if (DOMSummary) DOMSummary.textContent = setSelectionSummary();
+
+  const DOMCount = document.getElementById('setPickerCount');
+  if (DOMCount) {
+    const priced = setRegistry.filter(setDefinition => setDefinition.priced).length;
+    DOMCount.textContent = `${setRegistry.length} sets · ${priced} priced`;
+  }
+}
+
+function handleSetPickerFilter(inputValue) {
+  setPickerFilterString = inputValue;
+  renderSetPicker();
 }
 
 function toggleSetSelection(setKey, shouldBeSelected) {
@@ -515,6 +575,7 @@ async function loadSetCatalogue(setDefinition) {
 }
 
 function ensureSelectedCataloguesLoaded() {
+  ensureSelectedPricesLoaded();
   const pending = selectedSetKeys
     .map(findSetDefinition)
     .filter(setDefinition => setDefinition
@@ -615,10 +676,10 @@ function retryFailedCatalogues() {
    PRICE-MAPPING-NOTES.md by audit-price-mapping.py.
    --------------------------------------------------------------------------- */
 
-function isUsableSnapshot(candidateSnapshot) {
-  return !!candidateSnapshot
-    && !!candidateSnapshot.sets
-    && Object.keys(candidateSnapshot.sets).length > 0;
+function isUsablePriceIndex(candidateIndex) {
+  return !!candidateIndex
+    && !!candidateIndex.sets
+    && Object.keys(candidateIndex.sets).length > 0;
 }
 
 function snapshotTimestamp(snapshot) {
@@ -626,84 +687,70 @@ function snapshotTimestamp(snapshot) {
   return Number.isNaN(parsedDate.getTime()) ? 0 : parsedDate.getTime();
 }
 
-function readPriceOverride() {
+function priceOverrideKey(setKey) {
+  return TCG_CONFIG.PRICE_OVERRIDE_PREFIX + setKey;
+}
+
+// A set re-distilled in this browser is kept locally so the page keeps using it
+// across reloads. The served file wins again once it carries newer data, so
+// re-deploying supersedes a local override automatically.
+function readPriceOverride(setKey) {
   try {
-    const storedOverride = JSON.parse(localStorage.getItem(TCG_CONFIG.PRICE_OVERRIDE_KEY));
-    return isUsableSnapshot(storedOverride) ? storedOverride : null;
+    const stored = JSON.parse(localStorage.getItem(priceOverrideKey(setKey)));
+    return (stored && Array.isArray(stored.cards) && stored.cards.length > 0) ? stored : null;
   } catch (overrideParseException) {
     console.warn('Discarding unreadable price override:', overrideParseException);
     return null;
   }
 }
 
-function writePriceOverride(snapshot) {
+function writePriceOverride(setKey, snapshot) {
   try {
-    localStorage.setItem(TCG_CONFIG.PRICE_OVERRIDE_KEY, JSON.stringify(snapshot));
+    localStorage.setItem(priceOverrideKey(setKey), JSON.stringify(snapshot));
     return true;
   } catch (overrideWriteException) {
-    console.warn('Could not store the refreshed prices:', overrideWriteException);
+    console.warn('Could not store refreshed prices:', overrideWriteException);
     return false;
   }
 }
 
-function clearPriceOverride() {
-  try {
-    localStorage.removeItem(TCG_CONFIG.PRICE_OVERRIDE_KEY);
-  } catch (removeException) {
-    console.warn('Could not clear the local price override:', removeException);
-  }
-}
+function applyPriceIndex(priceIndex) {
+  priceSnapshotDate = priceIndex.snapshotDate || null;
+  priceIndexLoaded = true;
 
-function applyPriceSnapshot(snapshot, originLabel) {
-  loadedPriceSets = snapshot.sets;
-  priceSnapshotDate = snapshot.snapshotDate || null;
-  priceSnapshotOrigin = originLabel;
-
-  setRegistry = Object.keys(snapshot.sets).map(setKey => {
-    const setBlock = snapshot.sets[setKey];
+  setRegistry = Object.keys(priceIndex.sets).map(setKey => {
+    const block = priceIndex.sets[setKey];
     return {
       key: setKey,
-      label: setBlock.label || setKey,
-      apiSetId: setBlock.apiSetId || setKey,
-      setTotal: setBlock.setTotal || (setBlock.cards || []).length,
-      priceRows: setBlock.cards || []
+      label: block.label || setKey,
+      apiSetId: block.apiSetId || setKey,
+      setTotal: block.setTotal || 0,
+      releaseDate: block.releaseDate || '',
+      series: block.series || 'Other',
+      priced: !!block.priced,
+      priceFile: block.file || null,
+      unpricedReason: block.unpricedReason || ''
     };
-  });
-
-  rebuildPriceIndex();
+  }).sort((left, right) => String(left.releaseDate).localeCompare(String(right.releaseDate)));
 }
 
 async function loadPriceSnapshot() {
-  updatePriceStatusLine('Loading Cardmarket price snapshot…', 'loading');
-
-  const localOverride = readPriceOverride();
-  let servedSnapshot = null;
-  let loadFailureMessage = '';
+  updatePriceStatusLine('Loading price index…', 'loading');
 
   try {
-    const assetResponse = await fetch(TCG_CONFIG.PRICE_INDEX_URL);
-    if (!assetResponse.ok) throw new Error(`HTTP ${assetResponse.status}`);
+    const indexResponse = await fetch(TCG_CONFIG.PRICE_INDEX_URL);
+    if (!indexResponse.ok) throw new Error(`HTTP ${indexResponse.status}`);
 
-    const snapshotPayload = await assetResponse.json();
-    if (!isUsableSnapshot(snapshotPayload)) throw new Error('Price snapshot contained no sets.');
-    servedSnapshot = snapshotPayload;
+    const priceIndex = await indexResponse.json();
+    if (!isUsablePriceIndex(priceIndex)) throw new Error('price index listed no sets');
+    applyPriceIndex(priceIndex);
   } catch (exceptionContext) {
-    console.warn('Served price file unavailable:', exceptionContext);
-    loadFailureMessage = exceptionContext.message;
-  }
-
-  // Prefer whichever snapshot carries the newer Cardmarket date.
-  if (servedSnapshot && (!localOverride || snapshotTimestamp(servedSnapshot) >= snapshotTimestamp(localOverride))) {
-    applyPriceSnapshot(servedSnapshot, 'served file');
-    if (localOverride) clearPriceOverride();
-  } else if (localOverride) {
-    applyPriceSnapshot(localOverride, 'locally refreshed');
-  } else {
-    priceByCardId = new Map();
+    console.warn('Price index unavailable:', exceptionContext);
     updatePriceStatusLine(
-      `Prices unavailable (${loadFailureMessage}) — press UPDATE PRICES, or run "python3 build-price-index.py".`,
+      `Price index unavailable (${exceptionContext.message}) — run "python3 build-price-index.py".`,
       'unavailable'
     );
+    return;
   }
 
   selectedSetKeys = loadPersistedSelectedSets();
@@ -711,24 +758,68 @@ async function loadPriceSnapshot() {
   syncPriceBasisControls();
   ensureSelectedCataloguesLoaded();
 
-  // Only paint here if a warm cache has not already put cards on screen —
-  // otherwise this would be a second full rebuild of a grid that is already correct.
   if (!anySelectedCatalogueLoaded()) renderCardGrid();
   updateDashboardMetrics();
 }
 
-function rebuildPriceIndex() {
-  if (!loadedPriceSets) return;
+// Prices for one set, fetched the first time that set is shown.
+async function ensureSetPricesLoaded(setKey) {
+  const setDefinition = findSetDefinition(setKey);
+  if (!setDefinition || !setDefinition.priced) return;
+  if (priceRowsBySetKey.has(setKey)) return;
+  if (priceStateBySetKey.get(setKey) === 'loading') return;
 
+  priceStateBySetKey.set(setKey, 'loading');
+
+  const localOverride = readPriceOverride(setKey);
+  let servedRows = null;
+
+  try {
+    const priceResponse = await fetch(setDefinition.priceFile);
+    if (!priceResponse.ok) throw new Error(`HTTP ${priceResponse.status}`);
+    const payload = await priceResponse.json();
+    if (!payload || !Array.isArray(payload.cards)) throw new Error('no cards array');
+    servedRows = payload;
+  } catch (exceptionContext) {
+    console.warn(`Prices unavailable for ${setKey}:`, exceptionContext);
+  }
+
+  // Prefer whichever carries the newer Cardmarket date.
+  let chosen = servedRows;
+  if (localOverride && (!servedRows || snapshotTimestamp(localOverride) > snapshotTimestamp(servedRows))) {
+    chosen = localOverride;
+    priceSnapshotOrigin = 'locally refreshed';
+  }
+
+  if (chosen) {
+    priceRowsBySetKey.set(setKey, chosen.cards);
+    priceStateBySetKey.set(setKey, 'ready');
+  } else {
+    priceStateBySetKey.set(setKey, 'error');
+  }
+
+  rebuildPriceIndex();
+  // Prices usually arrive before the catalogue they belong to; there is nothing
+  // to repaint until cards exist, and once they do the values are patched in
+  // place rather than rebuilt.
+  if (anySelectedCatalogueLoaded() && !refreshRenderedCardValues()) renderCardGrid();
+}
+
+function ensureSelectedPricesLoaded() {
+  selectedSetKeys.forEach(setKey => { ensureSetPricesLoaded(setKey); });
+}
+
+function rebuildPriceIndex() {
   const nextPriceIndex = new Map();
   let approximateCount = 0;
 
   setRegistry.forEach(setDefinition => {
     const cards = catalogueBySetKey.get(setDefinition.key);
-    if (!cards) return;
+    const priceRows = priceRowsBySetKey.get(setDefinition.key);
+    if (!cards || !priceRows) return;
 
     const productsByName = new Map();
-    setDefinition.priceRows.forEach(priceRow => {
+    priceRows.forEach(priceRow => {
       const nameKey = normalizeCardName(priceRow.name);
       if (!productsByName.has(nameKey)) productsByName.set(nameKey, []);
       productsByName.get(nameKey).push(priceRow);
@@ -756,28 +847,52 @@ function rebuildPriceIndex() {
   });
 
   priceByCardId = nextPriceIndex;
+  updatePriceSummaryLine(approximateCount);
+}
 
-  const loadedCardCount = selectedCards().length;
-  const pricedCount = selectedCards().filter(card => priceByCardId.has(card.id)).length;
+// Describes the priced/unpriced state of what is currently on screen.
+function updatePriceSummaryLine(approximateCount) {
+  const shown = selectedCards();
+  if (shown.length === 0) {
+    const label = priceSnapshotDate ? ` · snapshot ${formatSnapshotDate(priceSnapshotDate)}` : '';
+    updatePriceStatusLine(`Price index ready${label}.`, 'ready');
+    return;
+  }
+
+  const unpricedSets = selectedSetKeys
+    .map(findSetDefinition)
+    .filter(setDefinition => setDefinition && !setDefinition.priced);
+
+  const priced = shown.filter(card => priceByCardId.has(card.id)).length;
   const snapshotLabel = priceSnapshotDate ? ` · snapshot ${formatSnapshotDate(priceSnapshotDate)}` : '';
   const originLabel = priceSnapshotOrigin === 'locally refreshed' ? ' · refreshed in this browser' : '';
+  const approxNote = approximateCount > 0
+    ? ` ${approximateCount} are best-guess matches.` : '';
 
-  if (loadedCardCount === 0) {
-    updatePriceStatusLine(`Price snapshot ready${snapshotLabel}${originLabel}.`, 'ready');
-  } else if (pricedCount < loadedCardCount) {
+  if (unpricedSets.length > 0) {
+    const names = unpricedSets.map(setDefinition => setDefinition.label);
+    const shownNames = names.slice(0, 3).join(', ') + (names.length > 3 ? ` +${names.length - 3} more` : '');
     updatePriceStatusLine(
-      `${pricedCount} of ${loadedCardCount} shown cards priced${snapshotLabel}${originLabel}.`,
+      `${priced} of ${shown.length} shown cards priced${snapshotLabel}. ` +
+      `No prices for ${shownNames} — the Cardmarket expansion could not be identified, ` +
+      `so those cards are deliberately left unpriced rather than guessed.${approxNote}`,
       'warn'
     );
-  } else {
-    const approxNote = approximateCount > 0
-      ? ` — ${approximateCount} are best-guess matches, see PRICE-MAPPING-NOTES.md`
-      : '';
-    updatePriceStatusLine(
-      `All ${pricedCount} shown cards priced${snapshotLabel}${originLabel}${approxNote}.`,
-      approximateCount > 0 ? 'warn' : 'ready'
-    );
+    return;
   }
+
+  if (priced < shown.length) {
+    updatePriceStatusLine(
+      `${priced} of ${shown.length} shown cards priced${snapshotLabel}${originLabel}.${approxNote}`,
+      'warn'
+    );
+    return;
+  }
+
+  updatePriceStatusLine(
+    `All ${priced} shown cards priced${snapshotLabel}${originLabel}.${approxNote}`,
+    approximateCount > 0 ? 'warn' : 'ready'
+  );
 }
 
 function formatSnapshotDate(isoLikeDateString) {
@@ -1029,6 +1144,29 @@ function refreshRenderedCardValues() {
   return true;
 }
 
+// Cards arrive grouped by set (selectedCards walks the registry in order), so a
+// heading is emitted whenever the set changes. It sticks to the top of the
+// viewport while that set's cards scroll past, so the set being looked at is
+// always named.
+function buildSetHeadingElement(setDefinition, cardsInSet) {
+  const heldCount = cardsInSet.filter(card => totalCopiesForCard(card.id) > 0).length;
+  const heldValue = cardsInSet.reduce((total, card) => total + heldValueForCard(card), 0);
+
+  const headingElement = document.createElement('div');
+  headingElement.className = 'set-heading';
+  headingElement.innerHTML = `
+    <span class="set-heading-name">${escapeMarkupText(setDefinition.label)}</span>
+    ${setDefinition.priced
+      ? ''
+      : '<span class="set-heading-flag" title="This set has no price data">no prices</span>'}
+    <span class="set-heading-stats">
+      ${heldCount} / ${cardsInSet.length} held${
+        setDefinition.priced && heldValue > 0 ? ` · ${formatEuroAmount(heldValue)}` : ''}
+    </span>
+  `;
+  return headingElement;
+}
+
 function selectVisibleCards() {
   const uniformQueryString = currentSearchFilterString.toLowerCase().trim();
   const numericQuery = uniformQueryString.replace(/^#/, '');
@@ -1073,14 +1211,34 @@ function renderCardGrid({ animateEntry: shouldAnimateEntry = false } = {}) {
   }
 
   const visibleCards = selectVisibleCards();
-  const showSetBadge = selectedSetKeys.length > 1;
+  const showSetHeadings = selectedSetKeys.length > 1;
+  // The heading names the set, so the per-card badge would just repeat it.
+  const showSetBadge = false;
 
   DOMGridContainer.innerHTML = '';
   DOMFallbackView.classList.toggle('hidden', visibleCards.length > 0);
   DOMGridContainer.classList.toggle('hidden', visibleCards.length === 0);
 
   const renderFragment = document.createDocumentFragment();
+
+  // Group the visible cards by set so each heading can report its own totals.
+  const cardsBySetKey = new Map();
+  visibleCards.forEach(card => {
+    if (!cardsBySetKey.has(card.setKey)) cardsBySetKey.set(card.setKey, []);
+    cardsBySetKey.get(card.setKey).push(card);
+  });
+
+  let headedSetKey = null;
   visibleCards.forEach((card, renderIndex) => {
+    if (showSetHeadings && card.setKey !== headedSetKey) {
+      headedSetKey = card.setKey;
+      const setDefinition = findSetDefinition(card.setKey);
+      if (setDefinition) {
+        renderFragment.appendChild(
+          buildSetHeadingElement(setDefinition, cardsBySetKey.get(card.setKey)));
+      }
+    }
+
     const cardNodeElement = document.createElement('article');
     cardNodeElement.dataset.cardId = card.id;
 
@@ -1292,33 +1450,50 @@ function stripVariantSuffix(productName) {
   return String(productName).replace(/\s*\[[^\]]{2,}\]\s*$/, '').trim();
 }
 
+// Mirrors resolve_expansion() in build-price-index.py: the registry caches the
+// expansion found last time, which is trusted only when every anchor name is
+// still present in it. Otherwise the expansion is re-fingerprinted, so a
+// renumbered snapshot is detected rather than silently mis-priced.
 function detectExpansionIdForSet(setDefinition, productsByExpansion) {
-  const anchorNames = new Set(setDefinition.anchorNames.map(name => name.toLowerCase()));
-  const candidates = [];
+  // Unpriced sets carry no anchors by design — nothing to fingerprint.
+  if (!Array.isArray(setDefinition.anchorNames) || setDefinition.anchorNames.length === 0) return null;
 
+  const anchorNames = new Set(setDefinition.anchorNames.map(name => normalizeCardName(name)));
+
+  const anchorCoverage = expansionId => {
+    const products = productsByExpansion.get(expansionId);
+    if (!products) return 0;
+    const present = new Set(products.map(product => normalizeCardName(product.name)));
+    let matched = 0;
+    anchorNames.forEach(anchorName => { if (present.has(anchorName)) matched += 1; });
+    return matched / anchorNames.size;
+  };
+
+  const cachedId = setDefinition.expansionId;
+  const cachedCoverage = (cachedId === undefined || cachedId === null) ? 0 : anchorCoverage(cachedId);
+  if (cachedCoverage === 1) return cachedId;
+
+  const expectedProducts = setDefinition.expectedProducts || 0;
+  const candidates = [];
   productsByExpansion.forEach((products, expansionId) => {
     if (expansionId === null || expansionId === undefined) return;
-    let matched = 0;
-    anchorNames.forEach(anchorName => {
-      if (products.some(product => stripVariantSuffix(product.name).toLowerCase() === anchorName)) matched += 1;
-    });
-    const coverage = matched / anchorNames.size;
+    const coverage = anchorCoverage(expansionId);
     if (coverage >= DUMP_CONFIG.MINIMUM_ANCHOR_COVERAGE) {
       candidates.push({
         expansionId,
         coverage,
-        sizeDelta: Math.abs(products.length - setDefinition.expectedProducts)
+        sizeDelta: Math.abs(products.length - expectedProducts)
       });
     }
   });
 
-  if (candidates.length === 0) return null;
-  candidates.sort((left, right) =>
-    left.sizeDelta - right.sizeDelta || right.coverage - left.coverage);
+  if (candidates.length === 0) return cachedCoverage > 0 ? cachedId : null;
+  candidates.sort((left, right) => left.sizeDelta - right.sizeDelta || right.coverage - left.coverage);
   return candidates[0].expansionId;
 }
 
 function distillSnapshotFromDumps(productsPayload, priceGuidePayload, registrySets) {
+  // registrySets is already narrowed to the sets being refreshed.
   const allProducts = (productsPayload && productsPayload.products) || [];
   const allPriceRows = (priceGuidePayload && priceGuidePayload.priceGuides) || [];
 
@@ -1326,7 +1501,8 @@ function distillSnapshotFromDumps(productsPayload, priceGuidePayload, registrySe
   if (allPriceRows.length === 0) throw new Error('the price guide has no "priceGuides" array');
 
   const productsByExpansion = new Map();
-  allProducts.forEach(product => {
+  // Cardmarket files code cards inside set expansions; they are not cards.
+  allProducts.filter(product => !/code card/i.test(product.name)).forEach(product => {
     if (!productsByExpansion.has(product.idExpansion)) productsByExpansion.set(product.idExpansion, []);
     productsByExpansion.get(product.idExpansion).push(product);
   });
@@ -1337,6 +1513,7 @@ function distillSnapshotFromDumps(productsPayload, priceGuidePayload, registrySe
   const missingSets = [];
 
   registrySets.forEach(setDefinition => {
+    if (setDefinition.priced === false) return;
     const expansionId = detectExpansionIdForSet(setDefinition, productsByExpansion);
     if (expansionId === null) {
       missingSets.push(setDefinition.label);
@@ -1443,25 +1620,54 @@ async function refreshPricesFromDumps(payloadSource, { offerFilePicker = false }
   setUpdateButtonBusy(true);
 
   try {
-    const registrySets = await fetchSetRegistryDefinitions();
+    // Only the sets on screen are rebuilt. Re-distilling all 141 would hold
+    // megabytes in localStorage, well past what browsers allow; the Python
+    // script remains the way to refresh everything at once.
+    const targetSets = selectedSetKeys
+      .map(findSetDefinition)
+      .filter(setDefinition => setDefinition && setDefinition.priced);
+
+    if (targetSets.length === 0) {
+      updatePriceStatusLine('Select at least one priced set to refresh.', 'warn');
+      return;
+    }
+
+    const registrySets = (await fetchSetRegistryDefinitions())
+      .filter(entry => targetSets.some(setDefinition => setDefinition.key === entry.key));
+
     const { productsPayload, priceGuidePayload } = await payloadSource();
-    updatePriceStatusLine('Rebuilding the price index…', 'loading');
+    updatePriceStatusLine(`Rebuilding prices for ${registrySets.length} set(s)…`, 'loading');
 
-    const refreshedSnapshot = distillSnapshotFromDumps(productsPayload, priceGuidePayload, registrySets);
-    const wasStored = writePriceOverride(refreshedSnapshot);
+    const refreshed = distillSnapshotFromDumps(productsPayload, priceGuidePayload, registrySets);
 
-    applyPriceSnapshot(refreshedSnapshot, 'locally refreshed');
+    let storedCount = 0;
+    let cardCount = 0;
+    Object.keys(refreshed.sets).forEach(setKey => {
+      const block = refreshed.sets[setKey];
+      const perSet = {
+        key: setKey,
+        label: block.label,
+        expansionId: block.expansionId,
+        snapshotDate: refreshed.snapshotDate,
+        cards: block.cards
+      };
+      priceRowsBySetKey.set(setKey, block.cards);
+      priceStateBySetKey.set(setKey, 'ready');
+      cardCount += block.cards.length;
+      if (writePriceOverride(setKey, perSet)) storedCount += 1;
+    });
+
+    priceSnapshotDate = refreshed.snapshotDate || priceSnapshotDate;
+    priceSnapshotOrigin = 'locally refreshed';
+    rebuildPriceIndex();
     renderSetPicker();
-    renderCardGrid();
-    updateDashboardMetrics();
+    if (!refreshRenderedCardValues()) renderCardGrid();
 
-    offerRegeneratedIndexDownload(refreshedSnapshot, wasStored);
+    offerRegeneratedIndexDownload(refreshed, storedCount, cardCount);
   } catch (exceptionContext) {
     console.warn('Price refresh failed:', exceptionContext);
     updatePriceStatusLine(`Could not update prices: ${exceptionContext.message}`, 'unavailable');
 
-    // The dumps are 28 MB, so they may deliberately not be deployed alongside
-    // the site. Offer the local-file route rather than dead-ending.
     if (offerFilePicker) {
       const DOMPriceStatusLine = document.getElementById('priceStatusLine');
       const DOMPickButton = document.createElement('button');
@@ -1511,40 +1717,44 @@ function refreshPricesFromChosenFiles(domEventScope) {
 
 // Refreshed prices live in this browser only. For visitors to see them, the
 // served card-prices.json has to be replaced — so hand back the regenerated file.
-function offerRegeneratedIndexDownload(refreshedSnapshot, wasStored) {
+function offerRegeneratedIndexDownload(refreshed, storedCount, cardCount) {
   const DOMPriceStatusLine = document.getElementById('priceStatusLine');
   if (!DOMPriceStatusLine) return;
 
-  const snapshotLabel = refreshedSnapshot.snapshotDate
-    ? formatSnapshotDate(refreshedSnapshot.snapshotDate)
-    : 'unknown date';
-  const setCount = Object.keys(refreshedSnapshot.sets).length;
-  const cardCount = Object.keys(refreshedSnapshot.sets)
-    .reduce((total, key) => total + refreshedSnapshot.sets[key].cards.length, 0);
+  const setKeys = Object.keys(refreshed.sets);
+  const snapshotLabel = refreshed.snapshotDate ? formatSnapshotDate(refreshed.snapshotDate) : 'unknown date';
 
   DOMPriceStatusLine.className = 'status-line status-line--ready';
   DOMPriceStatusLine.classList.remove('hidden');
   DOMPriceStatusLine.textContent =
-    `Prices updated from the raw dumps — ${setCount} sets, ${cardCount} cards, snapshot ${snapshotLabel}. ` +
-    (wasStored
-      ? 'Saved in this browser. Visitors keep seeing the old prices until you replace the served file: '
-      : 'Could not save locally (storage full), so this lasts until you reload. Replace the served file: ');
+    `Refreshed ${setKeys.length} set(s), ${cardCount} cards, snapshot ${snapshotLabel}. ` +
+    `Saved in this browser for ${storedCount} of them. Visitors keep the old prices until the served ` +
+    `files are replaced — run "python3 build-price-index.py" for a full rebuild, or download just these: `;
 
-  const DOMDownloadButton = document.createElement('button');
-  DOMDownloadButton.type = 'button';
-  DOMDownloadButton.className = 'inline-link-btn';
-  DOMDownloadButton.textContent = `download ${TCG_CONFIG.PRICE_INDEX_URL}`;
-  DOMDownloadButton.addEventListener('click', () => downloadRegeneratedIndex(refreshedSnapshot));
-  DOMPriceStatusLine.appendChild(DOMDownloadButton);
+  setKeys.forEach((setKey, index) => {
+    if (index > 0) DOMPriceStatusLine.appendChild(document.createTextNode(', '));
+    const DOMButton = document.createElement('button');
+    DOMButton.type = 'button';
+    DOMButton.className = 'inline-link-btn';
+    DOMButton.textContent = `${setKey}.json`;
+    DOMButton.addEventListener('click', () => downloadRegeneratedIndex({
+      key: setKey,
+      label: refreshed.sets[setKey].label,
+      expansionId: refreshed.sets[setKey].expansionId,
+      snapshotDate: refreshed.snapshotDate,
+      cards: refreshed.sets[setKey].cards
+    }, `${setKey}.json`));
+    DOMPriceStatusLine.appendChild(DOMButton);
+  });
 }
 
-function downloadRegeneratedIndex(refreshedSnapshot) {
+function downloadRegeneratedIndex(refreshedSnapshot, fileName) {
   const objectUrl = URL.createObjectURL(
     new Blob([JSON.stringify(refreshedSnapshot, null, 1)], { type: 'application/json' })
   );
   const DOMAnchorDownloadElement = document.createElement('a');
   DOMAnchorDownloadElement.href = objectUrl;
-  DOMAnchorDownloadElement.download = TCG_CONFIG.PRICE_INDEX_URL;
+  DOMAnchorDownloadElement.download = fileName || TCG_CONFIG.PRICE_INDEX_URL;
   document.body.appendChild(DOMAnchorDownloadElement);
   DOMAnchorDownloadElement.click();
   DOMAnchorDownloadElement.remove();
@@ -1615,6 +1825,8 @@ function attachEventHandlers() {
       if (!checkboxElement || !checkboxElement.dataset.setKey) return;
       toggleSetSelection(checkboxElement.dataset.setKey, checkboxElement.checked);
     });
+  document.getElementById('setPickerFilter')
+    .addEventListener('input', inputEvent => handleSetPickerFilter(inputEvent.target.value));
   document.getElementById('setPickerAll').addEventListener('click', () => selectAllSets(true));
   document.getElementById('setPickerNone').addEventListener('click', () => selectAllSets(false));
 

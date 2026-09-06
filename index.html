@@ -22,11 +22,14 @@
         </button>
 
         <div class="set-picker-panel hidden" id="setPickerPanel">
+          <input type="text" id="setPickerFilter" class="set-picker-filter"
+                 placeholder="Filter sets…" aria-label="Filter sets">
           <div class="set-picker-actions">
             <button type="button" class="inline-link-btn" id="setPickerAll">Select all</button>
             <button type="button" class="inline-link-btn" id="setPickerNone">Clear</button>
+            <span class="set-picker-count" id="setPickerCount"></span>
           </div>
-          <div id="setPickerOptions"></div>
+          <div id="setPickerOptions" class="set-picker-options"></div>
         </div>
       </div>
     </div>
