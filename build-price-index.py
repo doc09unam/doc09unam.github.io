@@ -117,9 +117,11 @@ def main():
                 "avg": price_row.get("avg"),
                 "low": price_row.get("low"),
                 "trend": price_row.get("trend"),
+                "avg30": price_row.get("avg30"),
                 "avgHolo": price_row.get("avg-holo"),
                 "lowHolo": price_row.get("low-holo"),
                 "trendHolo": price_row.get("trend-holo"),
+                "avg30Holo": price_row.get("avg30-holo"),
             }
         )
 

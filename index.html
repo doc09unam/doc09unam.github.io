@@ -14,23 +14,36 @@
       <p class="brand-sub">Mega Evolution · 84 numbered + secrets · 120 total</p>
     </div>
 
-    <div class="metrics">
-      <div class="box">
-        <div class="box-label">Copies</div>
-        <div class="box-value box-value--indigo" id="metricCopies">0</div>
+    <div class="header-right">
+      <div class="metrics">
+        <div class="box">
+          <div class="box-label">Copies</div>
+          <div class="box-value box-value--indigo" id="metricCopies">0</div>
+        </div>
+        <div class="box">
+          <div class="box-label">Unique</div>
+          <div class="box-value box-value--green" id="metricUnique">0 / 120</div>
+        </div>
+        <div class="box">
+          <div class="box-label">Set Completion</div>
+          <div class="box-value box-value--green" id="metricCompletion">0%</div>
+          <div class="completion-track"><div class="completion-fill" id="completionBar"></div></div>
+        </div>
+        <div class="box">
+          <div class="box-label">Portfolio Value</div>
+          <div class="box-value box-value--amber" id="metricValue">€0.00</div>
+          <div class="box-note" id="metricValueBasis">average sale price</div>
+        </div>
       </div>
-      <div class="box">
-        <div class="box-label">Unique</div>
-        <div class="box-value box-value--green" id="metricUnique">0 / 120</div>
-      </div>
-      <div class="box">
-        <div class="box-label">Set Completion</div>
-        <div class="box-value box-value--green" id="metricCompletion">0%</div>
-        <div class="completion-track"><div class="completion-fill" id="completionBar"></div></div>
-      </div>
-      <div class="box">
-        <div class="box-label">Portfolio Value</div>
-        <div class="box-value box-value--amber" id="metricValue">€0.00</div>
+
+      <div class="basis-switch">
+        <span class="basis-label">Valued at</span>
+        <div class="basis-buttons" role="group" aria-label="Cardmarket price basis">
+          <button type="button" id="basis-low" class="basis-btn" aria-pressed="false">LOW</button>
+          <button type="button" id="basis-avg" class="basis-btn basis-btn--active" aria-pressed="true">AVG</button>
+          <button type="button" id="basis-trend" class="basis-btn" aria-pressed="false">TREND</button>
+          <button type="button" id="basis-avg30" class="basis-btn" aria-pressed="false">30-DAY</button>
+        </div>
       </div>
     </div>
   </header>
@@ -52,6 +65,12 @@
     </div>
 
     <div class="io-buttons">
+      <button type="button" id="updatePricesButton" class="btn-ghost btn-ghost--wide"
+              title="Re-read products_singles_6.json and price_guide_6.json and rebuild the price index">
+        UPDATE PRICES
+      </button>
+      <input type="file" id="dumpsInput" class="hidden" accept=".json" multiple>
+
       <button type="button" id="exportButton" class="btn-ghost">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 3v12"></path><path d="M7 10l5 5 5-5"></path><path d="M5 21h14"></path>

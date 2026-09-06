@@ -18,7 +18,9 @@ const TCG_CONFIG = {
   SET_TOTAL: 120,
   API_ENDPOINT: 'https://api.pokemontcg.io/v2/cards',
   PRICE_INDEX_URL: 'pitch-black-prices.json',
+  PRICE_OVERRIDE_KEY: 'app_tcgtracker_me5_price_override',
   INVENTORY_KEY: 'app_tcgtracker_me5_inventory_v2',
+  PRICE_BASIS_KEY: 'app_tcgtracker_me5_price_basis',
   LEGACY_MANIFEST_KEY: 'app_tcgtracker_me5_owned_manifest',
   CATALOGUE_CACHE_KEY: 'app_tcgtracker_me5_catalogue_cache',
   CACHE_LIFETIME_MS: 1000 * 60 * 60 * 24,
@@ -32,9 +34,35 @@ const TCG_CONFIG = {
 // (which are printed in a single finish). Those two columns are the only finishes
 // that can be valued, so those are the only two the tracker records.
 const VARIANT_DEFINITIONS = [
-  { key: 'normal', label: 'Normal', priceField: 'avg' },
-  { key: 'reverse', label: 'Reverse', priceField: 'avgHolo' }
+  { key: 'normal', label: 'Normal', finish: 'base' },
+  { key: 'reverse', label: 'Reverse', finish: 'holo' }
 ];
+
+// Which Cardmarket metric the grid and the portfolio total are valued against.
+// All four are present for every card in the snapshot; the holo counterparts are
+// present for exactly the 74 reverse-holo cards.
+const PRICE_BASES = [
+  { key: 'low', label: 'Low', baseField: 'low', holoField: 'lowHolo', description: 'lowest current listing' },
+  { key: 'avg', label: 'Avg', baseField: 'avg', holoField: 'avgHolo', description: 'average sale price' },
+  { key: 'trend', label: 'Trend', baseField: 'trend', holoField: 'trendHolo', description: 'Cardmarket price trend' },
+  { key: 'avg30', label: '30-day', baseField: 'avg30', holoField: 'avg30Holo', description: '30-day rolling average' }
+];
+
+const DEFAULT_PRICE_BASIS = 'avg';
+
+// Re-distilling the raw Cardmarket dumps in the browser (the UPDATE PRICES button).
+// This mirrors build-price-index.py exactly; either route produces the same file.
+const DUMP_CONFIG = {
+  PRODUCTS_URL: 'products_singles_6.json',
+  PRICE_GUIDE_URL: 'price_guide_6.json',
+  // Pokemon that debut as "Mega ___ ex" in Pitch Black, so they cannot appear under
+  // any other Cardmarket expansion. Used to fingerprint this set's idExpansion rather
+  // than hardcoding a number that would go stale.
+  ANCHOR_CARD_NAMES: [
+    'Mega Darkrai ex', 'Mega Zeraora ex', 'Mega Chandelure ex',
+    'Mega Excadrill ex', 'Mega Delphox ex', 'Mega Slowbro ex'
+  ]
+};
 
 const RARITY_SLUG_MAP = {
   'Common': 'common',
@@ -65,6 +93,7 @@ let priceSnapshotDate = null;
 
 // cardId -> { normal: n, reverse: n }
 let inventoryByCardId = loadPersistedInventory();
+let currentPriceBasisKey = loadPersistedPriceBasis();
 
 /* ---------------------------------------------------------------------------
    Utilities
@@ -357,28 +386,79 @@ function revealCardWorkspace() {
    --------------------------------------------------------------------------- */
 
 let loadedPriceRows = null;
+let priceSnapshotOrigin = '';
+
+function isUsableSnapshot(candidateSnapshot) {
+  return !!candidateSnapshot
+    && Array.isArray(candidateSnapshot.cards)
+    && candidateSnapshot.cards.length > 0;
+}
+
+function snapshotTimestamp(snapshot) {
+  const parsedDate = new Date((snapshot && snapshot.snapshotDate) || 0);
+  return Number.isNaN(parsedDate.getTime()) ? 0 : parsedDate.getTime();
+}
+
+// A snapshot re-distilled in this browser is kept locally so the page keeps using
+// it across reloads. The served file still wins once it carries newer data, so
+// re-deploying pitch-black-prices.json supersedes a local override automatically.
+function readPriceOverride() {
+  try {
+    const storedOverride = JSON.parse(localStorage.getItem(TCG_CONFIG.PRICE_OVERRIDE_KEY));
+    return isUsableSnapshot(storedOverride) ? storedOverride : null;
+  } catch (overrideParseException) {
+    console.warn('Discarding unreadable price override:', overrideParseException);
+    return null;
+  }
+}
+
+function writePriceOverride(snapshot) {
+  try {
+    localStorage.setItem(TCG_CONFIG.PRICE_OVERRIDE_KEY, JSON.stringify(snapshot));
+    return true;
+  } catch (overrideWriteException) {
+    console.warn('Could not store the refreshed prices:', overrideWriteException);
+    return false;
+  }
+}
+
+function applyPriceSnapshot(snapshot, originLabel) {
+  loadedPriceRows = snapshot.cards;
+  priceSnapshotDate = snapshot.snapshotDate || null;
+  priceSnapshotOrigin = originLabel;
+  rebuildPriceIndex();
+}
 
 async function loadPriceSnapshot() {
   updatePriceStatusLine('Loading Cardmarket price snapshot…', 'loading');
+
+  const localOverride = readPriceOverride();
+  let servedSnapshot = null;
+  let loadFailureMessage = '';
 
   try {
     const assetResponse = await fetch(TCG_CONFIG.PRICE_INDEX_URL);
     if (!assetResponse.ok) throw new Error(`HTTP ${assetResponse.status}`);
 
     const snapshotPayload = await assetResponse.json();
-    if (!snapshotPayload || !Array.isArray(snapshotPayload.cards) || snapshotPayload.cards.length === 0) {
-      throw new Error('Price snapshot contained no cards.');
-    }
-
-    loadedPriceRows = snapshotPayload.cards;
-    priceSnapshotDate = snapshotPayload.snapshotDate || null;
-    rebuildPriceIndex();
+    if (!isUsableSnapshot(snapshotPayload)) throw new Error('Price snapshot contained no cards.');
+    servedSnapshot = snapshotPayload;
   } catch (exceptionContext) {
-    console.warn('Price data unavailable:', exceptionContext);
+    console.warn('Served price file unavailable:', exceptionContext);
+    loadFailureMessage = exceptionContext.message;
+  }
+
+  // Prefer whichever snapshot carries the newer Cardmarket date.
+  if (servedSnapshot && (!localOverride || snapshotTimestamp(servedSnapshot) >= snapshotTimestamp(localOverride))) {
+    applyPriceSnapshot(servedSnapshot, 'served file');
+    if (localOverride) clearPriceOverride();
+  } else if (localOverride) {
+    applyPriceSnapshot(localOverride, 'locally refreshed');
+  } else {
     loadedPriceRows = null;
     priceByCardId = new Map();
     updatePriceStatusLine(
-      `Prices unavailable (${exceptionContext.message}) — run "python3 build-price-index.py" to regenerate ${TCG_CONFIG.PRICE_INDEX_URL}.`,
+      `Prices unavailable (${loadFailureMessage}) — press UPDATE PRICES, or run "python3 build-price-index.py".`,
       'unavailable'
     );
   }
@@ -386,6 +466,241 @@ async function loadPriceSnapshot() {
   // Whichever of the catalogue / price load finishes second repaints the grid.
   if (catalogueHasLoaded) renderCardGrid();
   updateDashboardMetrics();
+}
+
+function clearPriceOverride() {
+  try {
+    localStorage.removeItem(TCG_CONFIG.PRICE_OVERRIDE_KEY);
+  } catch (removeException) {
+    console.warn('Could not clear the local price override:', removeException);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Re-distilling the raw Cardmarket dumps in the browser.
+
+   Port of build-price-index.py: fingerprint the expansion from the anchor names,
+   keep that expansion's products in idProduct order, and join each to its price
+   row. Producing the same shape means the ordinal name-pairing above works
+   identically whichever route produced the snapshot.
+   --------------------------------------------------------------------------- */
+
+function stripVariantSuffix(productName) {
+  return String(productName).replace(/\s*\[[^\]]*\]\s*$/, '').trim();
+}
+
+function detectExpansionIdFromProducts(allProducts) {
+  const anchorNameSet = new Set(DUMP_CONFIG.ANCHOR_CARD_NAMES.map(name => name.toLowerCase()));
+  const expansionVoteCounts = new Map();
+
+  allProducts.forEach(product => {
+    if (!anchorNameSet.has(stripVariantSuffix(product.name).toLowerCase())) return;
+    const expansionId = product.idExpansion;
+    expansionVoteCounts.set(expansionId, (expansionVoteCounts.get(expansionId) || 0) + 1);
+  });
+
+  let bestExpansionId = null;
+  let bestVoteCount = 0;
+  expansionVoteCounts.forEach((voteCount, expansionId) => {
+    if (voteCount > bestVoteCount) {
+      bestVoteCount = voteCount;
+      bestExpansionId = expansionId;
+    }
+  });
+
+  return bestExpansionId;
+}
+
+function distillSnapshotFromDumps(productsPayload, priceGuidePayload) {
+  const allProducts = (productsPayload && productsPayload.products) || [];
+  const allPriceRows = (priceGuidePayload && priceGuidePayload.priceGuides) || [];
+
+  if (allProducts.length === 0) throw new Error('the products file has no "products" array');
+  if (allPriceRows.length === 0) throw new Error('the price guide has no "priceGuides" array');
+
+  const expansionId = detectExpansionIdFromProducts(allProducts);
+  if (expansionId === null) {
+    throw new Error(`could not find ${TCG_CONFIG.SET_NAME} in the products file — is this snapshot older than the set?`);
+  }
+
+  const priceRowByProductId = new Map(allPriceRows.map(row => [row.idProduct, row]));
+
+  const cards = allProducts
+    .filter(product => product.idExpansion === expansionId)
+    .sort((leftProduct, rightProduct) => leftProduct.idProduct - rightProduct.idProduct)
+    .map(product => {
+      const priceRow = priceRowByProductId.get(product.idProduct);
+      if (!priceRow) return null;
+      return {
+        idProduct: product.idProduct,
+        name: stripVariantSuffix(product.name),
+        avg: priceRow.avg ?? null,
+        low: priceRow.low ?? null,
+        trend: priceRow.trend ?? null,
+        avg30: priceRow.avg30 ?? null,
+        avgHolo: priceRow['avg-holo'] ?? null,
+        lowHolo: priceRow['low-holo'] ?? null,
+        trendHolo: priceRow['trend-holo'] ?? null,
+        avg30Holo: priceRow['avg30-holo'] ?? null
+      };
+    })
+    .filter(Boolean);
+
+  if (cards.length === 0) throw new Error('no priced products found for this expansion');
+
+  return {
+    generatedAt: new Date().toISOString(),
+    snapshotDate: (priceGuidePayload && priceGuidePayload.createdAt) || null,
+    expansionId,
+    sourceFiles: [DUMP_CONFIG.PRODUCTS_URL, DUMP_CONFIG.PRICE_GUIDE_URL],
+    cards
+  };
+}
+
+async function fetchDumpFile(assetUrl) {
+  const assetResponse = await fetch(assetUrl);
+  if (!assetResponse.ok) throw new Error(`${assetUrl} — HTTP ${assetResponse.status}`);
+  return assetResponse.json();
+}
+
+function readFileAsJSON(fileHandle) {
+  return new Promise((resolveJSON, rejectJSON) => {
+    const readerInstance = new FileReader();
+    readerInstance.onerror = () => rejectJSON(new Error(`could not read ${fileHandle.name}`));
+    readerInstance.onload = readerEvent => {
+      try {
+        resolveJSON(JSON.parse(readerEvent.target.result));
+      } catch (parseException) {
+        rejectJSON(new Error(`${fileHandle.name} is not valid JSON`));
+      }
+    };
+    readerInstance.readAsText(fileHandle);
+  });
+}
+
+// The two dumps are told apart by their contents, so it does not matter which
+// order they were picked in or what they were renamed to.
+function sortDumpPayloads(payloadList) {
+  const productsPayload = payloadList.find(payload => payload && Array.isArray(payload.products));
+  const priceGuidePayload = payloadList.find(payload => payload && Array.isArray(payload.priceGuides));
+
+  if (!productsPayload) throw new Error('no products file among the selected files');
+  if (!priceGuidePayload) throw new Error('no price guide file among the selected files');
+  return { productsPayload, priceGuidePayload };
+}
+
+function setUpdateButtonBusy(isBusy) {
+  const DOMUpdateButton = document.getElementById('updatePricesButton');
+  if (!DOMUpdateButton) return;
+  DOMUpdateButton.disabled = isBusy;
+  DOMUpdateButton.textContent = isBusy ? 'UPDATING…' : 'UPDATE PRICES';
+}
+
+async function refreshPricesFromDumps(payloadSource, { offerFilePicker = false } = {}) {
+  setUpdateButtonBusy(true);
+
+  try {
+    const { productsPayload, priceGuidePayload } = await payloadSource();
+    updatePriceStatusLine('Rebuilding the price index…', 'loading');
+
+    const refreshedSnapshot = distillSnapshotFromDumps(productsPayload, priceGuidePayload);
+    const wasStored = writePriceOverride(refreshedSnapshot);
+
+    applyPriceSnapshot(refreshedSnapshot, 'locally refreshed');
+    if (catalogueHasLoaded) renderCardGrid();
+    updateDashboardMetrics();
+
+    offerRegeneratedIndexDownload(refreshedSnapshot, wasStored);
+  } catch (exceptionContext) {
+    console.warn('Price refresh failed:', exceptionContext);
+    updatePriceStatusLine(`Could not update prices: ${exceptionContext.message}`, 'unavailable');
+
+    // The dumps are 28 MB, so they may deliberately not be deployed alongside the
+    // site. Offer the local-file route rather than dead-ending.
+    if (offerFilePicker) {
+      const DOMPriceStatusLine = document.getElementById('priceStatusLine');
+      const DOMPickButton = document.createElement('button');
+      DOMPickButton.type = 'button';
+      DOMPickButton.className = 'inline-link-btn';
+      DOMPickButton.textContent = 'choose the two files from your computer';
+      DOMPickButton.addEventListener('click', () => document.getElementById('dumpsInput').click());
+      DOMPriceStatusLine.appendChild(document.createTextNode(' '));
+      DOMPriceStatusLine.appendChild(DOMPickButton);
+    }
+  } finally {
+    setUpdateButtonBusy(false);
+  }
+}
+
+function refreshPricesFromFolder() {
+  return refreshPricesFromDumps(async () => {
+    updatePriceStatusLine(
+      `Downloading ${DUMP_CONFIG.PRODUCTS_URL} and ${DUMP_CONFIG.PRICE_GUIDE_URL} — these are large files, this can take a moment…`,
+      'loading'
+    );
+    const [productsPayload, priceGuidePayload] = await Promise.all([
+      fetchDumpFile(DUMP_CONFIG.PRODUCTS_URL),
+      fetchDumpFile(DUMP_CONFIG.PRICE_GUIDE_URL)
+    ]);
+    return { productsPayload, priceGuidePayload };
+  }, { offerFilePicker: true });
+}
+
+function refreshPricesFromChosenFiles(domEventScope) {
+  const dumpInputElement = domEventScope.target;
+  const chosenFiles = Array.from(dumpInputElement.files || []);
+  dumpInputElement.value = '';
+
+  if (chosenFiles.length === 0) return;
+  if (chosenFiles.length !== 2) {
+    updatePriceStatusLine('Select both files at once: the products file and the price guide.', 'unavailable');
+    return;
+  }
+
+  refreshPricesFromDumps(async () => {
+    updatePriceStatusLine('Reading the selected files…', 'loading');
+    const payloadList = await Promise.all(chosenFiles.map(readFileAsJSON));
+    return sortDumpPayloads(payloadList);
+  });
+}
+
+// Refreshed prices live in this browser only. For visitors to see them, the served
+// pitch-black-prices.json has to be replaced — so hand back the regenerated file.
+function offerRegeneratedIndexDownload(refreshedSnapshot, wasStored) {
+  const DOMPriceStatusLine = document.getElementById('priceStatusLine');
+  if (!DOMPriceStatusLine) return;
+
+  const snapshotLabel = refreshedSnapshot.snapshotDate
+    ? formatSnapshotDate(refreshedSnapshot.snapshotDate)
+    : 'unknown date';
+
+  DOMPriceStatusLine.className = 'status-line status-line--ready';
+  DOMPriceStatusLine.classList.remove('hidden');
+  DOMPriceStatusLine.textContent =
+    `Prices updated from the raw dumps — ${refreshedSnapshot.cards.length} cards, snapshot ${snapshotLabel}. ` +
+    (wasStored
+      ? 'Saved in this browser. Visitors keep seeing the old prices until you replace the served file: '
+      : 'Could not save locally (storage full), so this lasts until you reload. Replace the served file: ');
+
+  const DOMDownloadButton = document.createElement('button');
+  DOMDownloadButton.type = 'button';
+  DOMDownloadButton.className = 'inline-link-btn';
+  DOMDownloadButton.textContent = `download ${TCG_CONFIG.PRICE_INDEX_URL}`;
+  DOMDownloadButton.addEventListener('click', () => downloadRegeneratedIndex(refreshedSnapshot));
+  DOMPriceStatusLine.appendChild(DOMDownloadButton);
+}
+
+function downloadRegeneratedIndex(refreshedSnapshot) {
+  const objectUrl = URL.createObjectURL(
+    new Blob([JSON.stringify(refreshedSnapshot, null, 1)], { type: 'application/json' })
+  );
+  const DOMAnchorDownloadElement = document.createElement('a');
+  DOMAnchorDownloadElement.href = objectUrl;
+  DOMAnchorDownloadElement.download = TCG_CONFIG.PRICE_INDEX_URL;
+  document.body.appendChild(DOMAnchorDownloadElement);
+  DOMAnchorDownloadElement.click();
+  DOMAnchorDownloadElement.remove();
+  URL.revokeObjectURL(objectUrl);
 }
 
 function rebuildPriceIndex() {
@@ -432,6 +747,7 @@ function rebuildPriceIndex() {
 
   const matchedCount = nextPriceIndex.size;
   const snapshotLabel = priceSnapshotDate ? ` · snapshot ${formatSnapshotDate(priceSnapshotDate)}` : '';
+  const originLabel = priceSnapshotOrigin === 'locally refreshed' ? ' · refreshed in this browser' : '';
 
   if (unmatchedNames.length > 0) {
     console.warn('Unpriced card names:', unmatchedNames);
@@ -441,7 +757,7 @@ function rebuildPriceIndex() {
       'warn'
     );
   } else {
-    updatePriceStatusLine(`All ${matchedCount} cards priced${snapshotLabel}.`, 'ready');
+    updatePriceStatusLine(`All ${matchedCount} cards priced${snapshotLabel}${originLabel}.`, 'ready');
   }
 }
 
@@ -451,15 +767,76 @@ function formatSnapshotDate(isoLikeDateString) {
   return parsedDate.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-// A variant row is offered when the snapshot prices that finish. It is also kept
-// whenever the user already recorded copies of it, so holdings never become
+/* ---------------------------------------------------------------------------
+   Price basis — which Cardmarket metric everything is valued against.
+   --------------------------------------------------------------------------- */
+
+function loadPersistedPriceBasis() {
+  try {
+    const storedBasis = localStorage.getItem(TCG_CONFIG.PRICE_BASIS_KEY);
+    if (PRICE_BASES.some(basis => basis.key === storedBasis)) return storedBasis;
+  } catch (storageReadException) {
+    console.warn('Could not read stored price basis:', storageReadException);
+  }
+  return DEFAULT_PRICE_BASIS;
+}
+
+function getActivePriceBasis() {
+  return PRICE_BASES.find(basis => basis.key === currentPriceBasisKey) || PRICE_BASES[1];
+}
+
+function setPriceBasis(nextBasisKey) {
+  if (!PRICE_BASES.some(basis => basis.key === nextBasisKey)) return;
+  if (nextBasisKey === currentPriceBasisKey) return;
+
+  currentPriceBasisKey = nextBasisKey;
+  try {
+    localStorage.setItem(TCG_CONFIG.PRICE_BASIS_KEY, nextBasisKey);
+  } catch (storageWriteException) {
+    console.warn('Could not persist price basis:', storageWriteException);
+  }
+
+  syncPriceBasisControls();
+  renderCardGrid();
+}
+
+function syncPriceBasisControls() {
+  const activeBasis = getActivePriceBasis();
+
+  PRICE_BASES.forEach(basis => {
+    const DOMBasisButton = document.getElementById(`basis-${basis.key}`);
+    if (!DOMBasisButton) return;
+    const isActiveBasis = basis.key === activeBasis.key;
+    DOMBasisButton.classList.toggle('basis-btn--active', isActiveBasis);
+    DOMBasisButton.setAttribute('aria-pressed', String(isActiveBasis));
+  });
+
+  const DOMValueNote = document.getElementById('metricValueBasis');
+  if (DOMValueNote) DOMValueNote.textContent = activeBasis.description;
+}
+
+// Whether a card actually exists in a reverse-holo finish. This is decided by the
+// average-sale column alone, never by the selected basis: the snapshot stores a
+// literal 0 in trend-holo for the 46 single-finish cards, so keying off the trend
+// column would invent a €0.00 reverse row for every ex and secret rare.
+function cardHasReverseFinish(priceRow) {
+  return !!priceRow && priceRow.avgHolo !== null && priceRow.avgHolo !== undefined;
+}
+
+// A variant row is offered when the card is printed in that finish. It is also
+// kept whenever the user already recorded copies of it, so holdings never become
 // invisible just because the price file is missing.
 function variantRowsForCard(card) {
   const priceRow = priceByCardId.get(card.id) || null;
+  const activeBasis = getActivePriceBasis();
+  const hasReverse = cardHasReverseFinish(priceRow);
 
   return VARIANT_DEFINITIONS.map(variant => {
-    const rawPrice = priceRow ? priceRow[variant.priceField] : null;
-    const unitPrice = (rawPrice === null || rawPrice === undefined) ? null : Number(rawPrice);
+    const priceField = variant.finish === 'holo' ? activeBasis.holoField : activeBasis.baseField;
+    const rawPrice = priceRow ? priceRow[priceField] : null;
+    const isPriceable = variant.finish !== 'holo' || hasReverse;
+    const unitPrice = (!isPriceable || rawPrice === null || rawPrice === undefined) ? null : Number(rawPrice);
+
     return {
       key: variant.key,
       label: variant.label,
@@ -467,7 +844,7 @@ function variantRowsForCard(card) {
       count: readVariantCount(card.id, variant.key)
     };
   }).filter(variantRow =>
-    variantRow.key === 'normal' || variantRow.unitPrice !== null || variantRow.count > 0
+    variantRow.key === 'normal' || (variantRow.key === 'reverse' && hasReverse) || variantRow.count > 0
   );
 }
 
@@ -842,11 +1219,19 @@ function attachEventHandlers() {
       .addEventListener('click', () => switchViewTab(tabKey));
   });
 
+  PRICE_BASES.forEach(basis => {
+    const DOMBasisButton = document.getElementById(`basis-${basis.key}`);
+    if (DOMBasisButton) DOMBasisButton.addEventListener('click', () => setPriceBasis(basis.key));
+  });
+
   document.getElementById('exportButton').addEventListener('click', exportCollectionJSON);
   document.getElementById('importInput').addEventListener('change', importCollectionJSON);
+  document.getElementById('updatePricesButton').addEventListener('click', refreshPricesFromFolder);
+  document.getElementById('dumpsInput').addEventListener('change', refreshPricesFromChosenFiles);
 }
 
 attachEventHandlers();
+syncPriceBasisControls();
 updateDashboardMetrics();
 loadPriceSnapshot();
 initializeTCGTrackerApplication();
